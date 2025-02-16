@@ -80,73 +80,6 @@ async def upload_code(request: UploadRequest):
         logging.error(f"Unexpected error: {str(e)}")
         return JSONResponse(status_code=500, content={"error": "Unexpected error", "details": str(e)})
 
-
-
-'''
-@app.get("/execute/{file_name}")
-async def execute_code(file_name: str):
-    session_id = f"ros_session_{uuid.uuid4().hex[:8]}"
-
-    try:
-        subprocess.run("tmux start-server", shell=True, check=False)
-
-        command = f"""
-        tmux new-session -d -s {session_id} "bash -c '
-        cd /ros2_ws/src/sample_pkg &&
-        source /root/.bashrc &&
-        source /opt/ros/jazzy/setup.bash &&
-        source /ros2_ws/install/setup.bash &&
-        export PYTHONUNBUFFERED=1 &&
-        colcon build --symlink-install &&
-        source /ros2_ws/install/setup.bash &&
-        ros2 run sample_pkg {file_name[:-3]};
-        exec bash'"
-        """
-        
-        subprocess.run(command, shell=True, check=True)
-
-        return JSONResponse({"message": "Execution started", "session_id": session_id})
-
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Error executing script: {str(e)}")
-
-
-@app.websocket("/ws/{session_id}")
-async def websocket_endpoint(websocket: WebSocket, session_id: str):
-    await websocket.accept()
-    last_output_lines = []
-
-    try:
-        while True:
-            # Capturar la salida de la sesión `tmux` en tiempo real
-            command = f"tmux capture-pane -p -t {session_id}"
-            process = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-
-            stdout, stderr = await process.communicate()
-            output = stdout.decode("utf-8").strip()
-
-            if not output:  # Evita enviar respuestas vacías
-                await asyncio.sleep(0.5)
-                continue
-
-            current_output_lines = output.split("\n")
-            new_lines = current_output_lines[len(last_output_lines):]
-
-            if new_lines:
-                message = json.dumps({"output": "\n".join(new_lines)})
-                await websocket.send_text(message)
-
-            last_output_lines = current_output_lines
-            await asyncio.sleep(0.5)
-
-    except WebSocketDisconnect:
-        print(f"Cliente desconectado de {session_id}")
-'''
-
 @app.get("/execute/{file_name}")
 async def execute_code(file_name: str):
     session_id = f"ros_session_{uuid.uuid4().hex[:8]}"
@@ -163,9 +96,8 @@ async def execute_code(file_name: str):
         tmux new-session -d -s {session_id} "bash -c '
         source /ros2_ws/install/setup.bash &&
         export PYTHONUNBUFFERED=1 &&
-        ros2 run sample_pkg {file_name[:-3]} 2>&1 | tee {log_file};
-        exec bash'"
-        """
+        ros2 run sample_pkg {file_name[:-3]} 2>&1 | tee {log_file};'"
+        """ #Se agrega exec bash para congelar tmux para debbugear
         
         subprocess.run(command, shell=True, check=True)
 
@@ -203,3 +135,17 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     except WebSocketDisconnect:
         print(f"Cliente desconectado de {session_id}")
+
+@app.get("/kill/{session_id}")
+async def kill_execution(session_id: str):
+    try:
+        print(f"Recibiendo solicitud para matar sesión: {session_id}")  # <-- DEBUG
+        command = f"tmux kill-session -t {session_id}"
+        subprocess.run(command, shell=True, check=True)
+
+        return JSONResponse({"message": "Execution stopped", "session_id": session_id})
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error al matar la sesión: {str(e)}")  # <-- DEBUG
+        raise HTTPException(status_code=500, detail=f"Error stopping execution: {str(e)}")
+
