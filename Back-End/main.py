@@ -149,3 +149,41 @@ async def kill_execution(session_id: str):
         print(f"Error al matar la sesión: {str(e)}")  # <-- DEBUG
         raise HTTPException(status_code=500, detail=f"Error stopping execution: {str(e)}")
 
+@app.delete("/cleanup/{file_name}")
+async def cleanup_workspace(file_name: str):
+    node_name = file_name.replace(".py", "")
+    file_path = os.path.join(SCRIPTS_DIR, node_name + ".py")
+
+    try:
+        # Eliminar el archivo Python
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logging.info(f"Archivo eliminado: {file_path}")
+        else:
+            logging.warning(f"Archivo no encontrado: {file_path}")
+
+        # Limpiar `setup.py`
+        setup_file = "/ros2_ws/src/sample_pkg/setup.py"
+        update_setup_py(setup_file, node_name, remove=True) 
+
+        # Limpiar `package.xml`
+        package_xml_file = "/ros2_ws/src/sample_pkg/package.xml"
+        update_package_xml(package_xml_file, remove=True) 
+
+        # Recompilar el workspace ROS 2 después de la limpieza
+        result = subprocess.run(
+            "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && colcon build --symlink-install'",
+            shell=True,
+            check=False,
+            capture_output=True,
+            text=True
+        )
+
+        logging.info(f"Colcon build output:\n{result.stdout}")
+        logging.error(f"Colcon build error:\n{result.stderr}")
+
+        return JSONResponse({"message": "Workspace cleaned successfully", "file": file_name})
+
+    except Exception as e:
+        logging.error(f"Error al limpiar el workspace: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Cleanup failed", "details": str(e)})

@@ -21,7 +21,7 @@ RUN bash -c "source /opt/ros/jazzy/setup.bash && \
     ros2 pkg create sample_pkg --build-type ament_python --dependencies rclpy std_msgs"
 
 
-# 📌 Compilar el paquete de ROS 2 asegurando que se use BASH
+# Compilar el paquete de ROS 2 asegurando que se use BASH
 RUN bash -c "source /opt/ros/jazzy/setup.bash && cd /ros2_ws && colcon build --symlink-install"
 
 # Configurar el entorno de ROS 2 para el contenedor
