@@ -10,6 +10,7 @@ services:
       - "8000:8000"
     volumes:
       - ./scripts/generated:/ros2_ws/src/sample_pkg/sample_pkg
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - rosblocks-network
 

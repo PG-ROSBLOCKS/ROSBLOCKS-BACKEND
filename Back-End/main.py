@@ -1,5 +1,5 @@
-from fastapi import FastAPI, WebSocket, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, WebSocket, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.websockets import WebSocketDisconnect
 from pydantic import BaseModel
@@ -25,6 +25,7 @@ app.add_middleware(
 
 # 📂 Directorio donde se almacenan los scripts dentro del paquete ROS 2
 SCRIPTS_DIR = "/ros2_ws/src/sample_pkg/sample_pkg"
+EXPORT_DIR = "/app/exported"
 
 class UploadRequest(BaseModel):
     file_name: str
@@ -187,3 +188,31 @@ async def cleanup_workspace(file_name: str):
     except Exception as e:
         logging.error(f"Error al limpiar el workspace: {str(e)}")
         return JSONResponse(status_code=500, content={"error": "Cleanup failed", "details": str(e)})
+
+
+@app.get("/export-project/")
+async def export_project(background_tasks: BackgroundTasks):
+
+    tar_path_local = "/tmp/ros2_ws_backend.tar.gz"
+    workspace_path = "/ros2_ws"
+
+    # 1) Comprimir /ros2_ws dentro del mismo contenedor "backend"
+    try:
+        subprocess.run(
+            ["bash", "-c", f"tar -czvf {tar_path_local} {workspace_path}"],
+            check=True
+        )
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Error al comprimir workspace: {e}")
+
+    # 2) Verificar que el tar se generó
+    if not os.path.exists(tar_path_local):
+        raise HTTPException(status_code=404, detail="No se encontró el archivo comprimido en backend")
+
+    # 3) Retornar el .tar.gz como un archivo descargable
+    background_tasks.add_task(os.remove, tar_path_local)
+    return FileResponse(
+        path=tar_path_local,
+        media_type="application/gzip",
+        filename="ros2_ws.tar.gz"
+    )

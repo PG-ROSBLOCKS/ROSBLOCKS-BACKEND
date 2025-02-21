@@ -1,7 +1,7 @@
 FROM osrf/ros:jazzy-simulation
 
 # Instalar dependencias necesarias
-RUN apt update && apt install -y \
+RUN apt update && apt install -y docker.io\
     python3-pip python3-venv tmux \
     ros-jazzy-turtlesim && \
     rm -rf /var/lib/apt/lists/*  # Limpiar caché
