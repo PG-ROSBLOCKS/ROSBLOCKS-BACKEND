@@ -49,6 +49,14 @@ async def upload_code(request: UploadRequest):
 
         with open(file_path, "w") as file:
             file.write(request.code)
+        
+        #TODO: Funciona pero está creando algo que se soobreescribió, toca ver la forma de no sobreescribir usando el volumen
+        init_file = os.path.join(SCRIPTS_DIR, "__init__.py")
+        # Verificar y crear __init__.py si no existe
+        if not os.path.exists(init_file):
+            os.makedirs(SCRIPTS_DIR, exist_ok=True)
+            with open(init_file, "w") as f:
+                f.write("")  # Crea un archivo vacío
 
         os.chmod(file_path, 0o755)  # Hacer el archivo ejecutable
         logging.info(f"Archivo guardado y hecho ejecutable: {file_path}")
@@ -194,7 +202,7 @@ async def cleanup_workspace(file_name: str):
 async def export_project(background_tasks: BackgroundTasks):
 
     tar_path_local = "/tmp/ros2_ws_backend.tar.gz"
-    workspace_path = "/ros2_ws"
+    workspace_path = "/ros2_ws/src/sample_pkg/"
 
     # 1) Comprimir /ros2_ws dentro del mismo contenedor "backend"
     try:
