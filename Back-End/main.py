@@ -1,5 +1,5 @@
-from fastapi import FastAPI, WebSocket, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, WebSocket, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.websockets import WebSocketDisconnect
 from pydantic import BaseModel
@@ -25,6 +25,7 @@ app.add_middleware(
 
 # 📂 Directorio donde se almacenan los scripts dentro del paquete ROS 2
 SCRIPTS_DIR = "/ros2_ws/src/sample_pkg/sample_pkg"
+EXPORT_DIR = "/app/exported"
 
 class UploadRequest(BaseModel):
     file_name: str
@@ -48,6 +49,14 @@ async def upload_code(request: UploadRequest):
 
         with open(file_path, "w") as file:
             file.write(request.code)
+        
+        #TODO: Funciona pero está creando algo que se soobreescribió, toca ver la forma de no sobreescribir usando el volumen
+        init_file = os.path.join(SCRIPTS_DIR, "__init__.py")
+        # Verificar y crear __init__.py si no existe
+        if not os.path.exists(init_file):
+            os.makedirs(SCRIPTS_DIR, exist_ok=True)
+            with open(init_file, "w") as f:
+                f.write("")  # Crea un archivo vacío
 
         os.chmod(file_path, 0o755)  # Hacer el archivo ejecutable
         logging.info(f"Archivo guardado y hecho ejecutable: {file_path}")
@@ -80,73 +89,6 @@ async def upload_code(request: UploadRequest):
         logging.error(f"Unexpected error: {str(e)}")
         return JSONResponse(status_code=500, content={"error": "Unexpected error", "details": str(e)})
 
-
-
-'''
-@app.get("/execute/{file_name}")
-async def execute_code(file_name: str):
-    session_id = f"ros_session_{uuid.uuid4().hex[:8]}"
-
-    try:
-        subprocess.run("tmux start-server", shell=True, check=False)
-
-        command = f"""
-        tmux new-session -d -s {session_id} "bash -c '
-        cd /ros2_ws/src/sample_pkg &&
-        source /root/.bashrc &&
-        source /opt/ros/jazzy/setup.bash &&
-        source /ros2_ws/install/setup.bash &&
-        export PYTHONUNBUFFERED=1 &&
-        colcon build --symlink-install &&
-        source /ros2_ws/install/setup.bash &&
-        ros2 run sample_pkg {file_name[:-3]};
-        exec bash'"
-        """
-        
-        subprocess.run(command, shell=True, check=True)
-
-        return JSONResponse({"message": "Execution started", "session_id": session_id})
-
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Error executing script: {str(e)}")
-
-
-@app.websocket("/ws/{session_id}")
-async def websocket_endpoint(websocket: WebSocket, session_id: str):
-    await websocket.accept()
-    last_output_lines = []
-
-    try:
-        while True:
-            # Capturar la salida de la sesión `tmux` en tiempo real
-            command = f"tmux capture-pane -p -t {session_id}"
-            process = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-
-            stdout, stderr = await process.communicate()
-            output = stdout.decode("utf-8").strip()
-
-            if not output:  # Evita enviar respuestas vacías
-                await asyncio.sleep(0.5)
-                continue
-
-            current_output_lines = output.split("\n")
-            new_lines = current_output_lines[len(last_output_lines):]
-
-            if new_lines:
-                message = json.dumps({"output": "\n".join(new_lines)})
-                await websocket.send_text(message)
-
-            last_output_lines = current_output_lines
-            await asyncio.sleep(0.5)
-
-    except WebSocketDisconnect:
-        print(f"Cliente desconectado de {session_id}")
-'''
-
 @app.get("/execute/{file_name}")
 async def execute_code(file_name: str):
     session_id = f"ros_session_{uuid.uuid4().hex[:8]}"
@@ -163,9 +105,8 @@ async def execute_code(file_name: str):
         tmux new-session -d -s {session_id} "bash -c '
         source /ros2_ws/install/setup.bash &&
         export PYTHONUNBUFFERED=1 &&
-        ros2 run sample_pkg {file_name[:-3]} 2>&1 | tee {log_file};
-        exec bash'"
-        """
+        ros2 run sample_pkg {file_name[:-3]} 2>&1 | tee {log_file};'"
+        """ #Se agrega exec bash para congelar tmux para debbugear
         
         subprocess.run(command, shell=True, check=True)
 
@@ -203,3 +144,83 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     except WebSocketDisconnect:
         print(f"Cliente desconectado de {session_id}")
+
+@app.get("/kill/{session_id}")
+async def kill_execution(session_id: str):
+    try:
+        print(f"Recibiendo solicitud para matar sesión: {session_id}")  # <-- DEBUG
+        command = f"tmux kill-session -t {session_id}"
+        subprocess.run(command, shell=True, check=True)
+
+        return JSONResponse({"message": "Execution stopped", "session_id": session_id})
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error al matar la sesión: {str(e)}")  # <-- DEBUG
+        raise HTTPException(status_code=500, detail=f"Error stopping execution: {str(e)}")
+
+@app.delete("/cleanup/{file_name}")
+async def cleanup_workspace(file_name: str):
+    node_name = file_name.replace(".py", "")
+    file_path = os.path.join(SCRIPTS_DIR, node_name + ".py")
+
+    try:
+        # Eliminar el archivo Python
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logging.info(f"Archivo eliminado: {file_path}")
+        else:
+            logging.warning(f"Archivo no encontrado: {file_path}")
+
+        # Limpiar `setup.py`
+        setup_file = "/ros2_ws/src/sample_pkg/setup.py"
+        update_setup_py(setup_file, node_name, remove=True) 
+
+        # Limpiar `package.xml`
+        package_xml_file = "/ros2_ws/src/sample_pkg/package.xml"
+        update_package_xml(package_xml_file, remove=True) 
+
+        # Recompilar el workspace ROS 2 después de la limpieza
+        result = subprocess.run(
+            "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && colcon build --symlink-install'",
+            shell=True,
+            check=False,
+            capture_output=True,
+            text=True
+        )
+
+        logging.info(f"Colcon build output:\n{result.stdout}")
+        logging.error(f"Colcon build error:\n{result.stderr}")
+
+        return JSONResponse({"message": "Workspace cleaned successfully", "file": file_name})
+
+    except Exception as e:
+        logging.error(f"Error al limpiar el workspace: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Cleanup failed", "details": str(e)})
+
+
+@app.get("/export-project/")
+async def export_project(background_tasks: BackgroundTasks):
+
+    tar_path_local = "/tmp/ros2_ws_backend.tar.gz"
+    workspace_path = "/ros2_ws/src/sample_pkg/"
+
+    # 1) Comprimir /ros2_ws dentro del mismo contenedor "backend"
+    try:
+        subprocess.run(
+            ["bash", "-c", f"tar -czvf {tar_path_local} {workspace_path}"],
+            check=True
+        )
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Error al comprimir workspace: {e}")
+
+    # 2) Verificar que el tar se generó
+    if not os.path.exists(tar_path_local):
+        raise HTTPException(status_code=404, detail="No se encontró el archivo comprimido en backend")
+
+    # 3) Retornar el .tar.gz como un archivo descargable
+    background_tasks.add_task(os.remove, tar_path_local)
+    return FileResponse(
+        path=tar_path_local,
+        media_type="application/gzip",
+        filename="ros2_ws.tar.gz"
+    )
