@@ -1,10 +1,11 @@
-FROM osrf/ros:jazzy-simulation
+FROM ros:jazzy
 
 # Instalar dependencias necesarias
-RUN apt update && apt install -y docker.io\
-    python3-pip python3-venv tmux \
-    ros-jazzy-turtlesim && \
-    rm -rf /var/lib/apt/lists/*  # Limpiar caché
+RUN apt update && apt install -y \
+    python3-pip python3-dev python3-venv tmux \
+    ros-jazzy-turtlesim ros-dev-tools && \
+    rm -rf /var/lib/apt/lists/*
+
 
 # Crear entorno virtual para FastAPI
 RUN python3 -m venv /opt/venv
@@ -18,8 +19,18 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 RUN bash -c "source /opt/ros/jazzy/setup.bash && \
     mkdir -p /ros2_ws/src && \
     cd /ros2_ws/src && \
-    ros2 pkg create sample_pkg --build-type ament_python --dependencies rclpy std_msgs"
+    ros2 pkg create sample_pkg --build-type ament_python --dependencies rclpy std_msgs && \
+    ros2 pkg create sample_interfaces --build-type ament_cmake && \
+    mkdir -p /ros2_ws/src/sample_interfaces/srv && \
+    mkdir -p /ros2_ws/src/sample_interfaces/msg"
 
+RUN /opt/venv/bin/pip install catkin_pkg
+RUN /opt/venv/bin/pip install empy
+RUN pip uninstall -y em && pip install empy==3.3.4
+RUN pip install numpy
+RUN pip install lark
+# Inicializa y actualiza rosdep
+RUN rosdep update && rosdep install --from-paths /ros2_ws --ignore-src -y
 
 # Compilar el paquete de ROS 2 asegurando que se use BASH
 RUN bash -c "source /opt/ros/jazzy/setup.bash && cd /ros2_ws && colcon build --symlink-install"

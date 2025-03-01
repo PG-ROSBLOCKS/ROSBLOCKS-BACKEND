@@ -8,7 +8,7 @@ import os
 import subprocess
 import uuid
 import json
-from ros_files_modifiers import update_setup_py, update_package_xml
+from ros_files_modifiers import *
 import logging
 import traceback
 
@@ -23,13 +23,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 📂 Directorio donde se almacenan los scripts dentro del paquete ROS 2
+# Directorio donde se almacenan los scripts dentro del paquete ROS 2
 SCRIPTS_DIR = "/ros2_ws/src/sample_pkg/sample_pkg"
 EXPORT_DIR = "/app/exported"
+INTERFACES_DIR = "/ros2_ws/src/sample_interfaces"
 
 class UploadRequest(BaseModel):
     file_name: str
     code: str
+    type: str
 
 import logging
 import subprocess
@@ -39,6 +41,94 @@ logging.basicConfig(level=logging.INFO)
 
 @app.post("/upload/")
 async def upload_code(request: UploadRequest):
+    if(request.type == "pub_sub"):
+        return await generate_pub_sub(request)
+    elif(request.type == "srv"):
+        return await generate_service(request)
+    elif(request.type == "msg"):
+        return await generate_message(request)
+        
+async def generate_service(request: UploadRequest):
+    srv_file_path = os.path.join(INTERFACES_DIR, "srv", request.file_name)
+    service_name = request.file_name.replace(".srv", "")
+
+    try:
+        logging.info(f"Recibiendo archivo de servicio: {srv_file_path}")
+
+        os.makedirs(os.path.join(INTERFACES_DIR, "srv"), exist_ok=True)
+
+        with open(srv_file_path, "w") as file:
+            file.write(request.code)
+
+        # Modificar package.xml
+        package_xml_file = "/ros2_ws/src/sample_interfaces/package.xml"
+        update_package_xml_services(package_xml_file)
+        logging.info("package.xml actualizado correctamente para servicios.")
+
+        # Modificar CMakeLists.txt
+        cmake_file = "/ros2_ws/src/sample_interfaces/CMakeLists.txt"
+        update_cmake_lists_services(cmake_file, service_name)
+        logging.info("CMakeLists.txt actualizado correctamente.")
+
+        # Recompilar solo el paquete de interfaces
+        result = subprocess.run(
+            "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && colcon build --packages-select sample_interfaces'",
+            shell=True,
+            check=False,
+            capture_output=True,
+            text=True
+        )
+
+        logging.info(f"Colcon build output:\n{result.stdout}")
+        logging.error(f"Colcon build error:\n{result.stderr}")
+
+        return JSONResponse({"message": "Service uploaded and package rebuilt", "file": request.file_name})
+
+    except Exception as e:
+        logging.error(f"Unexpected error: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Unexpected error", "details": str(e)})
+    
+async def generate_message(request: UploadRequest):
+    msg_file_path = os.path.join(INTERFACES_DIR, "msg", request.file_name)
+    service_name = request.file_name.replace(".msg", "")
+
+    try:
+        logging.info(f"Recibiendo archivo de mensaje: {msg_file_path}")
+
+        os.makedirs(os.path.join(INTERFACES_DIR, "msg"), exist_ok=True)
+
+        with open(msg_file_path, "w") as file:
+            file.write(request.code)
+
+        # Modificar package.xml
+        package_xml_file = "/ros2_ws/src/sample_interfaces/package.xml"
+        update_package_xml_services(package_xml_file) # Se usa la misma función que para servicios
+        logging.info("package.xml actualizado correctamente para mensajes.")
+
+        # Modificar CMakeLists.txt
+        cmake_file = "/ros2_ws/src/sample_interfaces/CMakeLists.txt"
+        update_cmake_lists_messages(cmake_file, service_name)
+        logging.info("CMakeLists.txt actualizado correctamente.")
+
+        # Recompilar solo el paquete de interfaces
+        result = subprocess.run(
+            "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && colcon build --packages-select sample_interfaces'",
+            shell=True,
+            check=False,
+            capture_output=True,
+            text=True
+        )
+
+        logging.info(f"Colcon build output:\n{result.stdout}")
+        logging.error(f"Colcon build error:\n{result.stderr}")
+
+        return JSONResponse({"message": "Msg uploaded and package rebuilt", "file": request.file_name})
+
+    except Exception as e:
+        logging.error(f"Unexpected error: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Unexpected error", "details": str(e)})
+    
+async def generate_pub_sub(request: UploadRequest):
     file_path = os.path.join(SCRIPTS_DIR, request.file_name)
     node_name = request.file_name.replace(".py", "")
 
