@@ -41,15 +41,17 @@ services:
     networks:
       - rosblocks-network
 
-  draw_circle:
+  turtlesim:
     build: ./turtlesimDocker
-    command: bash -c "source /opt/ros/humble/setup.sh && source /experiments/ros_experiment_1_ws/install/setup.sh && ros2 run turtlesim turtlesim_node"
+    #Se que poner un delay de 5 segundos es muy arbitrario, pero es una "solucion" para que turtlesim no muera mientras encuentro una mejor opcion
+    command: bash -c "sleep 5 && source /opt/ros/humble/setup.sh && source /experiments/ros_experiment_1_ws/install/setup.sh && ros2 run turtlesim turtlesim_node"
     networks:
       - rosblocks-network
     tty: true
     stdin_open: true
     depends_on:
       - novnc
+
 
 networks:
   rosblocks-network:
