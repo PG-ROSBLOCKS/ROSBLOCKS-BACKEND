@@ -1,0 +1,100 @@
+# app/services/execution_manager.py
+import os, subprocess, uuid, asyncio, json, logging
+from fastapi import HTTPException
+from fastapi.responses import JSONResponse, FileResponse
+from starlette.websockets import WebSocketDisconnect
+
+from config import settings
+
+logging.basicConfig(level=logging.INFO)
+
+async def execute_code(file_name: str):
+    session_id = f"ros_session_{uuid.uuid4().hex[:8]}"
+    log_file = os.path.join(settings.LOG_DIR, f"{session_id}.log")
+    try:
+        subprocess.run("tmux start-server", shell=True, check=False)
+        os.makedirs(settings.LOG_DIR, exist_ok=True)
+        command = f"""
+        tmux new-session -d -s {session_id} "bash -c '
+        source /ros2_ws/install/setup.bash &&
+        export PYTHONUNBUFFERED=1 &&
+        ros2 run sample_pkg {file_name[:-3]} 2>&1 | tee {log_file};'"
+        """
+        subprocess.run(command, shell=True, check=True)
+        return JSONResponse({"message": "Execution started", "session_id": session_id})
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Error executing script: {str(e)}")
+
+async def kill_execution(session_id: str):
+    try:
+        command = f"tmux kill-session -t {session_id}"
+        subprocess.run(command, shell=True, check=True)
+        return JSONResponse({"message": "Execution stopped", "session_id": session_id})
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Error stopping execution: {str(e)}")
+
+async def cleanup_workspace(file_name: str):
+    node_name = file_name.replace(".py", "")
+    file_path = os.path.join(settings.SCRIPTS_DIR, node_name + ".py")
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logging.info(f"Archivo eliminado: {file_path}")
+        else:
+            logging.warning(f"Archivo no encontrado: {file_path}")
+        setup_file = "/ros2_ws/src/sample_pkg/setup.py"
+        from utils.ros_modifiers import update_setup_py, update_package_xml
+        update_setup_py(setup_file, node_name, remove=True)
+        package_xml_file = "/ros2_ws/src/sample_pkg/package.xml"
+        update_package_xml(package_xml_file, remove=True)
+        result = subprocess.run(
+            "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && colcon build --symlink-install'",
+            shell=True, check=False, capture_output=True, text=True
+        )
+        logging.info(f"Colcon build output:\n{result.stdout}")
+        logging.error(f"Colcon build error:\n{result.stderr}")
+        return JSONResponse({"message": "Workspace cleaned successfully", "file": file_name})
+    except Exception as e:
+        logging.error(f"Error al limpiar el workspace: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Cleanup failed", "details": str(e)})
+
+async def export_project(background_tasks):
+    tar_path_local = "/tmp/ros2_ws_backend.tar.gz"
+    workspace_path = "/ros2_ws/src/sample_pkg/"
+    try:
+        subprocess.run(
+            ["bash", "-c", f"tar -czvf {tar_path_local} {workspace_path}"],
+            check=True
+        )
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Error al comprimir workspace: {e}")
+    if not os.path.exists(tar_path_local):
+        raise HTTPException(status_code=404, detail="No se encontró el archivo comprimido en backend")
+    background_tasks.add_task(os.remove, tar_path_local)
+    return FileResponse(
+        path=tar_path_local,
+        media_type="application/gzip",
+        filename="ros2_ws.tar.gz"
+    )
+
+async def websocket_handler(websocket, session_id: str):
+    await websocket.accept()
+    log_file = os.path.join(settings.LOG_DIR, f"{session_id}.log")
+    try:
+        last_pos = 0
+        while True:
+            if not os.path.exists(log_file):
+                await asyncio.sleep(0.5)
+                continue
+            with open(log_file, "r") as f:
+                f.seek(last_pos)
+                new_output = f.read()
+                last_pos = f.tell()
+            if new_output.strip():
+                message = json.dumps({"output": new_output.strip()})
+                await websocket.send_text(message)
+            await asyncio.sleep(0.5)
+    except WebSocketDisconnect:
+        logging.info(f"Cliente desconectado de {session_id}")
+    except Exception as e:
+        logging.error(f"WebSocket error: {str(e)}")
