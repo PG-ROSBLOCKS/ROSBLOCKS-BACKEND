@@ -11,3 +11,46 @@ services:
     volumes:
       - ./scripts/generated:/ros2_ws/src/sample_pkg/sample_pkg
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - rosblocks-network
+
+  ros2:
+    image: ros:jazzy-ros-base
+    container_name: ros2-jazzy
+    environment:
+      - DISPLAY=${DISPLAY}  # Permitir soporte gráfico para turtlesim
+    volumes:
+      - ./scripts/generated:/ros2_ws/src/sample_pkg/sample_pkg
+      - /tmp/.X11-unix:/tmp/.X11-unix  # Soporte gráfico
+    networks:
+      - rosblocks-network
+    working_dir: /ros2_ws
+    command: >
+      bash -c "apt update && apt install -y ros-jazzy-turtlesim &&
+               source /opt/ros/jazzy/setup.bash &&
+               colcon build --symlink-install &&
+               tail -f /dev/null"
+  novnc:
+    image: theasp/novnc:latest
+    environment:
+      - DISPLAY_WIDTH=300
+      - DISPLAY_HEIGHT=300
+      - RUN_XTERM=no
+    ports:
+      - "8080:8080"
+    networks:
+      - rosblocks-network
+
+  draw_circle:
+    build: ./turtlesimDocker
+    command: bash -c "source /opt/ros/humble/setup.sh && source /experiments/ros_experiment_1_ws/install/setup.sh && ros2 run turtlesim turtlesim_node"
+    networks:
+      - rosblocks-network
+    tty: true
+    stdin_open: true
+    depends_on:
+      - novnc
+
+networks:
+  rosblocks-network:
+    driver: bridge
