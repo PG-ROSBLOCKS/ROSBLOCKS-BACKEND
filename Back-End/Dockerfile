@@ -7,8 +7,12 @@ RUN apt update && apt install -y \
     rm -rf /var/lib/apt/lists/*
 
 # Crear entorno virtual para FastAPI
-RUN python3 -m venv /opt/venv
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install setuptools==58.2.0
+
 ENV PATH="/opt/venv/bin:$PATH"
+ENV DISPLAY=novnc:0.0
 
 # Instalar FastAPI y Uvicorn
 COPY requirements.txt .
