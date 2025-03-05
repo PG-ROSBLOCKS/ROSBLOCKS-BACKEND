@@ -1,0 +1,2 @@
+# Asegura que los archivos .sh usen siempre LF
+*.sh text eol=lf
