@@ -1,5 +1,0 @@
-# Ignorar todos los archivos en scripts/generated/
-Back-End/scripts/generated/
-Back-End/scripts/generated/*
-Back-End/scripts/generated/__pycache__/
-Back-End/scripts/generated/__pycache__/*

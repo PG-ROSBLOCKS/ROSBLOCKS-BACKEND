@@ -1,6 +1,0 @@
-fastapi
-uvicorn[standard]
-pydantic
-pytest
-pydantic-settings
-starlette
