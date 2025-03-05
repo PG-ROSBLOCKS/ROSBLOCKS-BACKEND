@@ -46,5 +46,9 @@ COPY app /app
 
 WORKDIR /app
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Definir el comando de inicio para FastAPI
-CMD ["/opt/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# CMD ["/opt/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT [ "/entrypoint.sh" ]
