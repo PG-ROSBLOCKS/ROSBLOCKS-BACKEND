@@ -8,8 +8,7 @@ RUN apt update && apt install -y \
 
 # Crear entorno virtual para FastAPI
 RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install setuptools==58.2.0
+    /opt/venv/bin/pip install --upgrade pip
 
 ENV PATH="/opt/venv/bin:$PATH"
 ENV DISPLAY=novnc:0.0
