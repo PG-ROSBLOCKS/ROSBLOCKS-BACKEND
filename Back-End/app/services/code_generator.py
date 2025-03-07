@@ -89,3 +89,34 @@ async def generate_pub_sub(request: UploadRequest):
     except Exception as e:
         logging.error(f"Unexpected error: {str(e)}")
         return JSONResponse(status_code=500, content={"error": "Unexpected error", "details": str(e)})
+    
+async def generate_server(request: UploadRequest):
+    file_path = os.path.join(settings.SCRIPTS_DIR, request.file_name)
+    node_name = request.file_name.replace(".py", "")
+    try:
+        logging.info(f"Recibiendo archivo: {file_path}")
+        os.makedirs(settings.SCRIPTS_DIR, exist_ok=True)
+        with open(file_path, "w") as file:
+            file.write(request.code)
+        init_file = os.path.join(settings.SCRIPTS_DIR, "__init__.py")
+        if not os.path.exists(init_file):
+            with open(init_file, "w") as f:
+                f.write("")
+        os.chmod(file_path, 0o755)
+        logging.info(f"Archivo guardado y hecho ejecutable: {file_path}")
+        setup_file = "/ros2_ws/src/sample_pkg/setup.py"
+        # ros_modifiers.update_setup_py(setup_file, node_name)
+        # logging.info("setup.py actualizado.")
+        # package_xml_file = "/ros2_ws/src/sample_pkg/package.xml"
+        # ros_modifiers.update_package_xml(package_xml_file)
+        # logging.info("package.xml actualizado.")
+        # result = subprocess.run(
+        #     "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && colcon build --symlink-install'",
+        #     shell=True, check=False, capture_output=True, text=True
+        # )
+        # logging.info(f"Colcon build output:\n{result.stdout}")
+        # logging.error(f"Colcon build error:\n{result.stderr}")
+        return JSONResponse({"message": "File uploaded and package rebuilt", "file": request.file_name})
+    except Exception as e:
+        logging.error(f"Unexpected error: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Unexpected error", "details": str(e)})
