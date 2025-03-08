@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   backend:
+    restart: always
     build:
       context: .
       dockerfile: Dockerfile
@@ -20,6 +21,7 @@ services:
 
   novnc:
     image: theasp/novnc:latest
+    restart: always
     environment:
       - DISPLAY_WIDTH=300
       - DISPLAY_HEIGHT=300

@@ -4,3 +4,4 @@ pydantic
 pytest
 pydantic-settings
 starlette
+docker
