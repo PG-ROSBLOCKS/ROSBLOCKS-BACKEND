@@ -43,8 +43,10 @@ async def cleanup_workspace(file_name: str):
         else:
             logging.warning(f"Archivo no encontrado: {file_path}")
         setup_file = "/ros2_ws/src/sample_pkg/setup.py"
+
         from utils.ros_modifiers import update_setup_py, update_package_xml
-        update_setup_py(setup_file, node_name, remove=True)
+        update_setup_py(setup_file, node_name, requestType="none", remove=True)
+
         package_xml_file = "/ros2_ws/src/sample_pkg/package.xml"
         update_package_xml(package_xml_file, remove=True)
         result = subprocess.run(

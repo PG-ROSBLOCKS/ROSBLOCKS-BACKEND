@@ -9,10 +9,12 @@ logging.basicConfig(
 )
 
 
-def update_setup_py(setup_file: str, node_name: str, remove: bool = False):
+def update_setup_py(setup_file: str, node_name: str, requestType: str = "none", remove: bool = False):
     with open(setup_file, "r") as f:
         lines = f.readlines()
     entry_point_line = f'            "{node_name} = sample_pkg.{node_name}:main",\n'
+    service_entry_point_line = f'            "service = py_srvcli.service_member_function:main,\n'
+
     inside_entry_points = False
     new_lines = []
     entry_found = False
@@ -26,6 +28,8 @@ def update_setup_py(setup_file: str, node_name: str, remove: bool = False):
         if inside_entry_points and "]" in line:
             if not entry_found and not remove:
                 new_lines.append(entry_point_line)
+            if requestType.startswith("service") and not remove:
+                new_lines.append(service_entry_point_line)
             inside_entry_points = False
         new_lines.append(line)
     with open(setup_file, "w") as f:
