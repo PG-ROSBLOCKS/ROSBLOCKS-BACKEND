@@ -10,7 +10,7 @@ logging.basicConfig(
 )
 
 def update_setup_py(setup_file: str, node_name: str, remove: bool = False):
-    """ Agregar o eliminar un ejecutable en setup.py """
+    logging.info("Iniciando update_setup_py para nodo '%s', remove=%s", node_name, remove)
     with open(setup_file, "r") as f:
         lines = f.readlines()
 
@@ -27,7 +27,7 @@ def update_setup_py(setup_file: str, node_name: str, remove: bool = False):
         if inside_entry_points and entry_point_line.strip() in line.strip():
             entry_found = True  # Ya está en setup.py
             if remove:
-                continue  # 🗑️ Si estamos eliminando, saltamos la línea
+                continue  # Si estamos eliminando, saltamos la línea
 
         if inside_entry_points and "]" in line:
             if not entry_found and not remove:
@@ -41,12 +41,13 @@ def update_setup_py(setup_file: str, node_name: str, remove: bool = False):
         f.writelines(new_lines)
 
     action = "Eliminado" if remove else "Agregado"
+    logging.info("Finalizado update_setup_py: %s %s", action, node_name)
     print(f"{action} {node_name} en setup.py")
 
 import xml.etree.ElementTree as ET  
 
 def update_package_xml(package_xml_file: str, remove: bool = False):
-    """ Agregar o eliminar dependencias en package.xml """
+    logging.info("Iniciando update_package_xml, remove=%s", remove)
     tree = ET.parse(package_xml_file)
     root = tree.getroot()
 
@@ -69,12 +70,12 @@ def update_package_xml(package_xml_file: str, remove: bool = False):
     tree.write(package_xml_file)
 
     action = "Eliminadas" if remove else "Agregadas"
+    logging.info("Finalizado update_package_xml: %s dependencias", action)
     print(f"{action} dependencias en package.xml")
 
 
 def update_package_xml_services(package_xml_file: str, dependencies: list = []):
-    """ Agrega dependencias necesarias en package.xml para la generación de servicios """
-    
+    logging.info("Iniciando update_package_xml_services con dependencias: %s", dependencies)
     tree = ET.parse(package_xml_file)
     root = tree.getroot()
 
@@ -102,11 +103,11 @@ def update_package_xml_services(package_xml_file: str, dependencies: list = []):
     # Guardar cambios en package.xml
     tree.write(package_xml_file)
 
+    logging.info("Finalizado update_package_xml_services, dependencias aplicadas")
     print(f"Actualizado package.xml con dependencias: {dependencies + [d[1] for d in required_dependencies]}")
 
-def update_cmake_lists_services(cmake_file: str, service_name: str, dependencies: list = []):
-    """Agrega un nuevo servicio .srv dentro del bloque rosidl_generate_interfaces en CMakeLists.txt de ROS 2."""
-    
+def update_cmake_lists_services(cmake_file: str, service_name: str, dependencies: list = [], remove: bool = False):
+    logging.info("Iniciando update_cmake_lists_services para servicio '%s', remove=%s", service_name, remove)
     with open(cmake_file, "r") as f:
         lines = f.readlines()
 
@@ -182,11 +183,12 @@ rosidl_generate_interfaces(${{PROJECT_NAME}}
     with open(cmake_file, "w") as f:
         f.writelines(lines)
 
-    print(f"CMakeLists.txt actualizado con `{service_name}.srv` dentro de `rosidl_generate_interfaces` sin duplicar DEPENDENCIES.")
+    action = "Eliminado" if remove else "Agregado"
+    logging.info("Finalizado update_cmake_lists_services: %s '%s.srv'", action, service_name)
+    print(f"CMakeLists.txt actualizado: {action} `{service_name}.srv` en rosidl_generate_interfaces.")
 
-def update_cmake_lists_messages(cmake_file: str, message_name: str, dependencies: list = []):
-    """Agrega un nuevo mensaje .msg dentro del bloque rosidl_generate_interfaces en CMakeLists.txt de ROS 2."""
-    
+def update_cmake_lists_messages(cmake_file: str, message_name: str, dependencies: list = [], remove: bool = False):
+    logging.info("Iniciando update_cmake_lists_messages para mensaje '%s', remove=%s", message_name, remove)
     with open(cmake_file, "r") as f:
         lines = f.readlines()
 
@@ -262,4 +264,6 @@ rosidl_generate_interfaces(${{PROJECT_NAME}}
     with open(cmake_file, "w") as f:
         f.writelines(lines)
 
-    print(f"CMakeLists.txt actualizado con `{message_name}.msg` dentro de `rosidl_generate_interfaces` sin duplicar DEPENDENCIES.")
+    action = "Eliminado" if remove else "Agregado"
+    logging.info("Finalizado update_cmake_lists_messages: %s '%s.msg'", action, message_name)
+    print(f"CMakeLists.txt actualizado: {action} `{message_name}.msg` en rosidl_generate_interfaces.")

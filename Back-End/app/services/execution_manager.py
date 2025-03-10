@@ -3,7 +3,7 @@ import os, subprocess, uuid, asyncio, json, logging
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from starlette.websockets import WebSocketDisconnect
-
+from utils.ros_modifiers import update_cmake_lists_services, update_cmake_lists_messages
 from config import settings
 
 logging.basicConfig(level=logging.INFO)
@@ -100,3 +100,40 @@ async def websocket_handler(websocket, session_id: str):
         logging.info(f"Cliente desconectado de {session_id}")
     except Exception as e:
         logging.error(f"WebSocket error: {str(e)}")
+
+async def delete_srv_file(file_name: str):
+    file_path = os.path.join(settings.SRV_DIR, file_name)
+    logging.info(f"Eliminando srv: {file_path}")
+    srv_name = file_name.replace(".srv", "")
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logging.info(f"Archivo .srv eliminado: {file_path}")
+        else:
+            logging.warning(f"Archivo .srv no encontrado: {file_path}")
+
+        cmake_file = settings.CMAKE_FILE
+        update_cmake_lists_services(cmake_file, srv_name, remove=True)
+
+        return JSONResponse({"message": ".srv file deleted successfully", "file": file_name})
+    except Exception as e:
+        logging.error(f"Error al eliminar el archivo .srv: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Deletion failed", "details": str(e)})
+
+async def delete_msg_file(file_name: str):
+    msg_name = file_name.replace(".msg", "")
+    file_path = os.path.join(settings.MSG_DIR, file_name)
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logging.info(f"Archivo .msg eliminado: {file_path}")
+        else:
+            logging.warning(f"Archivo .msg no encontrado: {file_path}")
+
+        cmake_file = settings.CMAKE_FILE
+        update_cmake_lists_messages(cmake_file, msg_name, remove=True)
+
+        return JSONResponse({"message": ".msg file deleted successfully", "file": file_name})
+    except Exception as e:
+        logging.error(f"Error al eliminar el archivo .msg: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Deletion failed", "details": str(e)})
