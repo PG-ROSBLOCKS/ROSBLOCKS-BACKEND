@@ -80,13 +80,17 @@ def update_package_xml_services(package_xml_file: str, dependencies: list = []):
     print(f"Actualizado package.xml con dependencias: {dependencies + [d[1] for d in required_dependencies]}")
 
 
-def update_cmake_lists_services(cmake_file: str, service_name: str, dependencies: list = []):
+def update_cmake_lists_services(cmake_file: str, service_name: str, dependencies: list = [], remove: bool = False):
+    """
+    Si remove es False, se agrega la línea para "srv/{service_name}.srv" dentro de
+    rosidl_generate_interfaces. Si remove es True, se elimina la línea correspondiente.
+    En modo eliminación, si no se encuentra la entrada, se lanza una excepción.
+    """
     with open(cmake_file, "r") as f:
         lines = f.readlines()
     ament_cmake_index = next((i for i, line in enumerate(lines) if "find_package(ament_cmake REQUIRED)" in line), None)
     if ament_cmake_index is None:
-        print("ERROR: `find_package(ament_cmake REQUIRED)` no encontrado en CMakeLists.txt.")
-        return
+        raise ValueError("find_package(ament_cmake REQUIRED) no encontrado en CMakeLists.txt.")
     if not any("find_package(rosidl_default_generators REQUIRED)" in line for line in lines):
         lines.insert(ament_cmake_index + 1, "find_package(rosidl_default_generators REQUIRED)\n")
     dependencies = list(set(dependencies + ["std_msgs"]))
@@ -97,7 +101,6 @@ def update_cmake_lists_services(cmake_file: str, service_name: str, dependencies
     rosidl_start_index = next((i for i, line in enumerate(lines) if "rosidl_generate_interfaces(" in line), None)
     rosidl_end_index = None
     dependencies_line_index = None
-    existing_services = set()
     if rosidl_start_index is not None:
         for i in range(rosidl_start_index, len(lines)):
             if "DEPENDENCIES" in lines[i]:
@@ -105,20 +108,36 @@ def update_cmake_lists_services(cmake_file: str, service_name: str, dependencies
             if ")" in lines[i]:
                 rosidl_end_index = i
                 break
+
+        # Filtrar las entradas de servicios existentes
+        found_entry = False
+        new_rosidl_block_lines = []
         for i in range(rosidl_start_index, rosidl_end_index):
-            match = re.match(r'\s*"srv/(.+)\.srv"', lines[i])
-            if match:
-                existing_services.add(match.group(1))
-        if service_name not in existing_services:
-            lines.insert(dependencies_line_index if dependencies_line_index else rosidl_end_index,
-                         f'  "srv/{service_name}.srv"\n')
-        lines = [line for line in lines if not re.search(r"\s*DEPENDENCIES\s+", line)]
-        lines.insert(rosidl_end_index, f"  DEPENDENCIES {' '.join(sorted(dependencies))}\n")
+            if re.search(r'\s*"srv/{}\.srv"'.format(re.escape(service_name)), lines[i]):
+                found_entry = True
+                if remove:
+                    # Si se desea eliminar, se omite esta línea
+                    continue
+            new_rosidl_block_lines.append(lines[i])
+        # En modo eliminación, si no se encontró la entrada, se lanza una excepción
+        if remove and not found_entry:
+            raise ValueError(f"No se encontró la entrada 'srv/{service_name}.srv' en CMakeLists.txt.")
+        # Si no es remove y la entrada no está presente, agregarla
+        if not remove:
+            service_present = any(re.search(r'\s*"srv/{}\.srv"'.format(re.escape(service_name)), line) for line in new_rosidl_block_lines)
+            if not service_present:
+                insert_index = dependencies_line_index if dependencies_line_index is not None else rosidl_end_index
+                new_rosidl_block_lines.insert(insert_index - rosidl_start_index, f'  "srv/{service_name}.srv"\n')
+        # Reconstruir la sección, removiendo cualquier línea DEPENDENCIES
+        new_rosidl_block_lines = [line for line in new_rosidl_block_lines if not re.search(r"\s*DEPENDENCIES\s+", line)]
+        new_rosidl_block_lines.append(f"  DEPENDENCIES {' '.join(sorted(dependencies))}\n")
+        lines = lines[:rosidl_start_index] + new_rosidl_block_lines + lines[rosidl_end_index:]
     else:
         ament_package_index = next((i for i, line in enumerate(lines) if "ament_package()" in line), None)
         if ament_package_index is None:
-            print("ERROR: `ament_package()` no encontrado en CMakeLists.txt.")
-            return
+            raise ValueError("ament_package() no encontrado en CMakeLists.txt.")
+        if remove:
+            raise ValueError(f"No se encontró sección rosidl_generate_interfaces, nada que eliminar para {service_name}.srv")
         rosidl_block = f"""
 rosidl_generate_interfaces(${{PROJECT_NAME}}
   "srv/{service_name}.srv"
@@ -127,17 +146,21 @@ rosidl_generate_interfaces(${{PROJECT_NAME}}
         lines.insert(ament_package_index, rosidl_block)
     with open(cmake_file, "w") as f:
         f.writelines(lines)
-    print(
-        f"CMakeLists.txt actualizado con `{service_name}.srv` dentro de `rosidl_generate_interfaces` sin duplicar DEPENDENCIES.")
+    action = "Eliminado" if remove else "Agregado"
+    print(f"CMakeLists.txt actualizado: {action} `{service_name}.srv` en rosidl_generate_interfaces.")
 
 
-def update_cmake_lists_messages(cmake_file: str, message_name: str, dependencies: list = []):
+def update_cmake_lists_messages(cmake_file: str, message_name: str, dependencies: list = [], remove: bool = False):
+    """
+    Si remove es False, se agrega la línea para "msg/{message_name}.msg" dentro de
+    rosidl_generate_interfaces. Si remove es True, se elimina la línea correspondiente.
+    En modo eliminación, si no se encuentra la entrada, se lanza una excepción.
+    """
     with open(cmake_file, "r") as f:
         lines = f.readlines()
     ament_cmake_index = next((i for i, line in enumerate(lines) if "find_package(ament_cmake REQUIRED)" in line), None)
     if ament_cmake_index is None:
-        print("ERROR: `find_package(ament_cmake REQUIRED)` no encontrado en CMakeLists.txt.")
-        return
+        raise ValueError("find_package(ament_cmake REQUIRED) no encontrado en CMakeLists.txt.")
     if not any("find_package(rosidl_default_generators REQUIRED)" in line for line in lines):
         lines.insert(ament_cmake_index + 1, "find_package(rosidl_default_generators REQUIRED)\n")
     dependencies = list(set(dependencies + ["std_msgs"]))
@@ -148,7 +171,6 @@ def update_cmake_lists_messages(cmake_file: str, message_name: str, dependencies
     rosidl_start_index = next((i for i, line in enumerate(lines) if "rosidl_generate_interfaces(" in line), None)
     rosidl_end_index = None
     dependencies_line_index = None
-    existing_messages = set()
     if rosidl_start_index is not None:
         for i in range(rosidl_start_index, len(lines)):
             if "DEPENDENCIES" in lines[i]:
@@ -156,20 +178,31 @@ def update_cmake_lists_messages(cmake_file: str, message_name: str, dependencies
             if ")" in lines[i]:
                 rosidl_end_index = i
                 break
+
+        found_entry = False
+        new_rosidl_block_lines = []
         for i in range(rosidl_start_index, rosidl_end_index):
-            match = re.match(r'\s*"msg/(.+)\.msg"', lines[i])
-            if match:
-                existing_messages.add(match.group(1))
-        if message_name not in existing_messages:
-            lines.insert(dependencies_line_index if dependencies_line_index else rosidl_end_index,
-                         f'  "msg/{message_name}.msg"\n')
-        lines = [line for line in lines if not re.search(r"\s*DEPENDENCIES\s+", line)]
-        lines.insert(rosidl_end_index, f"  DEPENDENCIES {' '.join(sorted(dependencies))}\n")
+            if re.search(r'\s*"msg/{}\.msg"'.format(re.escape(message_name)), lines[i]):
+                found_entry = True
+                if remove:
+                    continue
+            new_rosidl_block_lines.append(lines[i])
+        if remove and not found_entry:
+            raise ValueError(f"No se encontró la entrada 'msg/{message_name}.msg' en CMakeLists.txt.")
+        if not remove:
+            message_present = any(re.search(r'\s*"msg/{}\.msg"'.format(re.escape(message_name)), line) for line in new_rosidl_block_lines)
+            if not message_present:
+                insert_index = dependencies_line_index if dependencies_line_index is not None else rosidl_end_index
+                new_rosidl_block_lines.insert(insert_index - rosidl_start_index, f'  "msg/{message_name}.msg"\n')
+        new_rosidl_block_lines = [line for line in new_rosidl_block_lines if not re.search(r"\s*DEPENDENCIES\s+", line)]
+        new_rosidl_block_lines.append(f"  DEPENDENCIES {' '.join(sorted(dependencies))}\n")
+        lines = lines[:rosidl_start_index] + new_rosidl_block_lines + lines[rosidl_end_index:]
     else:
         ament_package_index = next((i for i, line in enumerate(lines) if "ament_package()" in line), None)
         if ament_package_index is None:
-            print("ERROR: `ament_package()` no encontrado en CMakeLists.txt.")
-            return
+            raise ValueError("ament_package() no encontrado en CMakeLists.txt.")
+        if remove:
+            raise ValueError(f"No se encontró sección rosidl_generate_interfaces, nada que eliminar para {message_name}.msg")
         rosidl_block = f"""
 rosidl_generate_interfaces(${{PROJECT_NAME}}
   "msg/{message_name}.msg"
@@ -178,5 +211,5 @@ rosidl_generate_interfaces(${{PROJECT_NAME}}
         lines.insert(ament_package_index, rosidl_block)
     with open(cmake_file, "w") as f:
         f.writelines(lines)
-    print(
-        f"CMakeLists.txt actualizado con `{message_name}.msg` dentro de `rosidl_generate_interfaces` sin duplicar DEPENDENCIES.")
+    action = "Eliminado" if remove else "Agregado"
+    print(f"CMakeLists.txt actualizado: {action} `{message_name}.msg` en rosidl_generate_interfaces.")
