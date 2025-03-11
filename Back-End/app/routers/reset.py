@@ -3,19 +3,14 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 import docker
 import logging
+import subprocess
 
 router = APIRouter()
 
 @router.post("/", response_model=dict)
 async def reset_container():
-    """
-    Reinicia el contenedor 'novnc' utilizando la API de Docker.
-    """
-    try:
-        client = docker.from_env()
-        container = client.containers.get("back-end-novnc-1")
-        container.restart()
-        return {"status": "Contenedor 'novnc' reiniciado exitosamente"}
-    except Exception as error:
-        logging.error(f"Error al reiniciar el contenedor 'novnc': {error}")
-        raise HTTPException(status_code=500, detail=f"Error al reiniciar el contenedor: {error}")
+    result = subprocess.run(
+            "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && ros2 service call /reset std_srvs/srv/Empty'",
+            shell=True, check=False, capture_output=True, text=True
+        )
+    logging.info(f"Turtlesim reset result:\n{result.stdout}")
