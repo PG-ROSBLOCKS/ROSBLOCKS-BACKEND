@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     SCRIPTS_DIR: str = "/ros2_ws/src/sample_pkg/sample_pkg"
     EXPORT_DIR: str = "/app/exported"
     INTERFACES_DIR: str = "/ros2_ws/src/sample_interfaces"
+    SRV_DIR: str = "/ros2_ws/src/sample_interfaces/srv"
+    MSG_DIR: str = "/ros2_ws/src/sample_interfaces/msg"
     LOG_DIR: str = "/ros2_ws/logs"
+    CMAKE_FILE: str = "/ros2_ws/src/sample_interfaces/CMakeLists.txt"
 
     class Config:
         env_file = ".env"

@@ -8,8 +8,7 @@ RUN apt update && apt install -y \
 
 # Crear entorno virtual para FastAPI
 RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install setuptools==58.2.0
+    /opt/venv/bin/pip install --upgrade pip
 
 ENV PATH="/opt/venv/bin:$PATH"
 ENV DISPLAY=novnc:0.0
@@ -46,6 +45,9 @@ COPY app /app
 
 WORKDIR /app
 
-# Definir el comando de inicio para FastAPI
-CMD ["/opt/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
+# Definir el comando de inicio para FastAPI
+# CMD ["/opt/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT [ "/entrypoint.sh" ]

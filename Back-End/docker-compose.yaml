@@ -2,13 +2,13 @@ version: '3.8'
 
 services:
   backend:
+    restart: always
     build:
       context: .
       dockerfile: Dockerfile
     container_name: rosblocks-backend
     ports:
       - "8000:8000"
-    command: bash -c "sleep 5 && ros2 run turtlesim turtlesim_node"
     volumes:
       - ./scripts/generated:/ros2_ws/src/sample_pkg/sample_pkg
       - /var/run/docker.sock:/var/run/docker.sock
@@ -21,6 +21,7 @@ services:
 
   novnc:
     image: theasp/novnc:latest
+    restart: always
     environment:
       - DISPLAY_WIDTH=300
       - DISPLAY_HEIGHT=300
