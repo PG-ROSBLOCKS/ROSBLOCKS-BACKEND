@@ -23,8 +23,8 @@ services:
     image: theasp/novnc:latest
     restart: always
     environment:
-      - DISPLAY_WIDTH=300
-      - DISPLAY_HEIGHT=300
+      - DISPLAY_WIDTH=500
+      - DISPLAY_HEIGHT=500
       - RUN_XTERM=no
     ports:
       - "8080:8080"
