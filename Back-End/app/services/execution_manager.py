@@ -62,7 +62,7 @@ async def cleanup_workspace(file_name: str):
 
 async def export_project(background_tasks):
     tar_path_local = "/tmp/ros2_ws_backend.tar.gz"
-    workspace_path = "/ros2_ws/src/sample_pkg/"
+    workspace_path = "/ros2_ws/src/"
     try:
         subprocess.run(
             ["bash", "-c", f"tar -czvf {tar_path_local} {workspace_path}"],
