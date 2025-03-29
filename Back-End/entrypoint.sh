@@ -50,4 +50,3 @@ sleep 2
 # 10. Iniciar turtlesim con variables de entorno gráficas
 echo "Iniciando turtlesim..."
 exec dbus-launch ros2 run turtlesim turtlesim_node
-logré que se mostrara novnc con esta configuración, ahora el problema está en que muestra una pantalla en negro en vez del turtlesim
