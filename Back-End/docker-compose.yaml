@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   backend:
+    image: rosblocks-backend:latest
     restart: always
     build:
       context: .
