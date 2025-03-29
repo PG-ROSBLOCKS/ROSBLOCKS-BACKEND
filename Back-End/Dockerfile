@@ -1,9 +1,18 @@
 FROM ros:jazzy
 
 # Instalar dependencias necesarias
-RUN apt update && apt install -y \
+RUN apt update && apt install -y --no-install-recomends\
     python3-pip python3-dev python3-venv tmux \
-    ros-jazzy-turtlesim ros-dev-tools && \
+    ros-jazzy-turtlesim ros-dev-tools \
+    x11vnc novnc qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools \
+    xfce4 xfce4-goodies dbus-x11 xvfb && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN rm -rf /usr/share/novnc && \
+    git clone https://github.com/novnc/noVNC.git /usr/share/novnc && \
+    cd /usr/share/novnc && git checkout v1.2.0
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends tightvncserver && \
     rm -rf /var/lib/apt/lists/*
 
 # Crear entorno virtual para FastAPI
@@ -11,7 +20,8 @@ RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip
 
 ENV PATH="/opt/venv/bin:$PATH"
-ENV DISPLAY=novnc:0.0
+ENV DISPLAY=:1 
+ENV QT_QPA_PLATFORM=offscreen 
 
 # Instalar FastAPI y Uvicorn
 COPY requirements.txt .
@@ -36,10 +46,6 @@ RUN rosdep update && rosdep install --from-paths /ros2_ws --ignore-src -y
 # Compilar el workspace de ROS 2
 RUN bash -c "source /opt/ros/jazzy/setup.bash && cd /ros2_ws && colcon build --symlink-install"
 
-# Configurar el entorno de ROS 2 para el contenedor
-RUN echo "source /ros2_ws/install/setup.bash" >> /root/.bashrc
-RUN echo "source /opt/ros/jazzy/setup.bash" >> /root/.bashrc
-
 # Copiar el backend de FastAPI (se copia la carpeta completa 'app')
 COPY app /app
 
@@ -48,6 +54,5 @@ WORKDIR /app
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Definir el comando de inicio para FastAPI
-# CMD ["/opt/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-ENTRYPOINT [ "/entrypoint.sh" ]
+# Definir el comando de inicio para FastAPI, NoVNC, y x11vnc
+ENTRYPOINT ["/entrypoint.sh"]

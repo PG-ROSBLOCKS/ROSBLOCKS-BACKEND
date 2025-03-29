@@ -11,11 +11,15 @@ app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION)
 # Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.get("/test")
+async def test_endpoint():
+    return {"message": "FastAPI is running!"}
+
 
 # Incluir routers
 app.include_router(upload.router, prefix="/upload", tags=["Upload"])
