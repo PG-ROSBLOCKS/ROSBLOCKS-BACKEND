@@ -1,9 +1,9 @@
 # app/services/code_generator.py
 import os, subprocess, logging
 from fastapi.responses import JSONResponse
-from models.requests import UploadRequest
-from config import settings
-from utils import ros_modifiers
+from ..models.requests import UploadRequest
+from ..config import settings
+from ..utils import ros_modifiers
 
 logging.basicConfig(level=logging.INFO)
 

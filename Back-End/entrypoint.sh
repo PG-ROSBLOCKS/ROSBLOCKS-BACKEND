@@ -1,14 +1,14 @@
 #!/bin/bash
-set -e  # Hace que el script termine si un comando falla
+set -e
 
-# Fuente del entorno ROS
+# Cargar ROS
 source /opt/ros/jazzy/setup.bash
 
-# Iniciar FastAPI en segundo plano
-/opt/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 &
+# Lanza el comando (por defecto, jupyterhub --ip 0.0.0.0) en segundo plano
+"$@" &
 
-# Esperar unos segundos para asegurar que FastAPI inicia correctamente
+# Esperar un poco
 sleep 5
 
-# Iniciar Turtlesim en primer plano
+# Ejecutar Turtlesim en primer plano
 exec ros2 run turtlesim turtlesim_node

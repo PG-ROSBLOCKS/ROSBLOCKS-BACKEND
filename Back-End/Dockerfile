@@ -1,21 +1,42 @@
 FROM ros:jazzy
 
-# Instalar dependencias necesarias
+# 1. Instalar dependencias de sistema necesarias
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-venv \
+    nodejs \
+    npm
+
 RUN apt update && apt install -y \
     python3-pip python3-dev python3-venv tmux \
     ros-jazzy-turtlesim ros-dev-tools && \
     rm -rf /var/lib/apt/lists/*
 
-# Crear entorno virtual para FastAPI
-RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip
-
 ENV PATH="/opt/venv/bin:$PATH"
 ENV DISPLAY=novnc:0.0
 
-# Instalar FastAPI y Uvicorn
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# 2. Instalar configurable-http-proxy de forma global
+RUN npm install -g configurable-http-proxy
+
+# 3. Crear un entorno virtual para Python y actualizar pip
+RUN python3 -m venv /opt/venv
+RUN /opt/venv/bin/pip install --upgrade pip
+
+
+RUN /opt/venv/bin/pip install jupyterhub
+RUN /opt/venv/bin/pip install jupyter
+
+RUN useradd testuser --create-home --shell /bin/bash
+RUN echo 'testuser:passwd' | chpasswd
+
+
+# 5. Ajustar PATH para que se incluyan /opt/venv/bin y /usr/local/bin (donde vive configurable-http-proxy)
+ENV PATH="/opt/venv/bin:/usr/local/bin:$PATH"
+
+COPY app ./app
+COPY jupyterhub_config.py .
+COPY requirements.txt /tmp/requirements.txt
+RUN /opt/venv/bin/pip install -r /tmp/requirements.txt
 
 # Crear el workspace de ROS 2 y los paquetes necesarios
 RUN bash -c "source /opt/ros/jazzy/setup.bash && \
@@ -40,14 +61,10 @@ RUN bash -c "source /opt/ros/jazzy/setup.bash && cd /ros2_ws && colcon build --s
 RUN echo "source /ros2_ws/install/setup.bash" >> /root/.bashrc
 RUN echo "source /opt/ros/jazzy/setup.bash" >> /root/.bashrc
 
-# Copiar el backend de FastAPI (se copia la carpeta completa 'app')
-COPY app /app
+# 6. Copiar un script de entrypoint
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-WORKDIR /app
-
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Definir el comando de inicio para FastAPI
-# CMD ["/opt/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-ENTRYPOINT [ "/entrypoint.sh" ]
+# 7. Definir ENTRYPOINT y CMD por defecto
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["jupyterhub", "--ip", "0.0.0.0"]

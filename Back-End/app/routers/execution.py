@@ -1,7 +1,7 @@
 # app/routers/execution.py
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
-from services.execution_manager import execute_code, kill_execution, cleanup_workspace, websocket_handler
+from ..services.execution_manager import execute_code, kill_execution, cleanup_workspace, websocket_handler
 import logging
 
 router = APIRouter()
