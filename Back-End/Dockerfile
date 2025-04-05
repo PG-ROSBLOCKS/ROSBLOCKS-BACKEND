@@ -15,7 +15,7 @@ RUN sudo apt-get update \
     && sudo apt-get install xvfb -y \
     && sudo apt-get install novnc x11vnc screen -y \
     && sudo apt-get install websockify -y \
-    && sudo apt-get install openbox -y  
+    && sudo apt-get install fluxbox -y  
 
 ENV PATH="/opt/venv/bin:$PATH"
 
