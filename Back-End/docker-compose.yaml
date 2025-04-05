@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     restart: always
@@ -9,28 +7,10 @@ services:
     container_name: rosblocks-backend
     ports:
       - "8000:8000"
+      - "8080:8080"
+      - "5900:5900"
     volumes:
       - ./scripts/generated:/ros2_ws/src/sample_pkg/sample_pkg
       - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - rosblocks-network
     tty: true
     stdin_open: true
-    depends_on:
-      - novnc
-
-  novnc:
-    image: theasp/novnc:latest
-    restart: always
-    environment:
-      - DISPLAY_WIDTH=500
-      - DISPLAY_HEIGHT=500
-      - RUN_XTERM=no
-    ports:
-      - "8080:8080"
-    networks:
-      - rosblocks-network
-
-networks:
-  rosblocks-network:
-    driver: bridge
