@@ -11,9 +11,14 @@ RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip
 
 
+RUN git clone https://github.com/novnc/noVNC.git /opt/novnc && \
+    cd /opt/novnc && git checkout v1.2.0
+
+
+
 RUN sudo apt-get update \
     && sudo apt-get install xvfb -y \
-    && sudo apt-get install novnc x11vnc screen -y \
+    && sudo apt-get install x11vnc screen -y \
     && sudo apt-get install websockify -y \
     && sudo apt-get install fluxbox -y  \
     && sudo apt-get install qt5dxcb-plugin -y 
