@@ -1,5 +1,6 @@
 services:
   backend:
+    image: rosblocks-b:latest
     restart: always
     build:
       context: .
@@ -8,7 +9,6 @@ services:
     ports:
       - "8000:8000"
       - "8080:8080"
-      - "5900:5900"
     volumes:
       - ./scripts/generated:/ros2_ws/src/sample_pkg/sample_pkg
       - /var/run/docker.sock:/var/run/docker.sock

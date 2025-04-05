@@ -9,7 +9,7 @@ chmod 700 "$XDG_RUNTIME_DIR"
 
 
 echo "[INFO] Iniciando Xvfb..."
-Xvfb $DISPLAY -screen 0 1024x768x24 &
+Xvfb $DISPLAY -screen 0 500x500x24 &
 sleep 2
 fluxbox > /dev/null 2>&1 &
 

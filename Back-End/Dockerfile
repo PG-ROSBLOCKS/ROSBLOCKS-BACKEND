@@ -12,7 +12,7 @@ RUN python3 -m venv /opt/venv && \
 
 
 RUN git clone https://github.com/novnc/noVNC.git /opt/novnc && \
-    cd /opt/novnc && git checkout v1.2.0
+    cd /opt/novnc && git checkout v1.6.0
 
 
 
