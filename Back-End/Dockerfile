@@ -15,7 +15,8 @@ RUN sudo apt-get update \
     && sudo apt-get install xvfb -y \
     && sudo apt-get install novnc x11vnc screen -y \
     && sudo apt-get install websockify -y \
-    && sudo apt-get install fluxbox -y  
+    && sudo apt-get install fluxbox -y  \
+    && sudo apt-get install qt5dxcb-plugin -y 
 
 RUN apt-get update && apt-get install -y \
     libxcb-xinerama0 \
@@ -32,8 +33,7 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     libxi6 \
     libxtst6 \
-    x11-utils
-
+    x11-utils 
 
 ENV PATH="/opt/venv/bin:$PATH"
 
@@ -71,6 +71,11 @@ WORKDIR /app
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+# Establecer display virtual
+ENV DISPLAY=:99
+ENV XDG_RUNTIME_DIR=/tmp/runtime-root
+RUN mkdir -p $XDG_RUNTIME_DIR
+RUN chmod 700 "$XDG_RUNTIME_DIR"
 
 # Definir el comando de inicio para FastAPI
 # CMD ["/opt/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

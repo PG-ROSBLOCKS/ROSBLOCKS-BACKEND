@@ -1,11 +1,6 @@
 #!/bin/bash
 set -e
 
-# Establecer display virtual
-export DISPLAY=:99
-export XDG_RUNTIME_DIR=/tmp/runtime-root
-mkdir -p $XDG_RUNTIME_DIR
-
 echo "[INFO] Iniciando Xvfb..."
 Xvfb $DISPLAY -screen 0 1024x768x24 &
 sleep 2
