@@ -17,6 +17,24 @@ RUN sudo apt-get update \
     && sudo apt-get install websockify -y \
     && sudo apt-get install fluxbox -y  
 
+RUN apt-get update && apt-get install -y \
+    libxcb-xinerama0 \
+    libxcb-xinput0 \
+    libxkbcommon-x11-0 \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-randr0 \
+    libxcb-render-util0 \
+    libxcb-shape0 \
+    libxcb-xfixes0 \
+    libxcb-sync1 \
+    libxcb-xkb1 \
+    libxrender1 \
+    libxi6 \
+    libxtst6 \
+    x11-utils
+
+
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Instalar FastAPI y Uvicorn
