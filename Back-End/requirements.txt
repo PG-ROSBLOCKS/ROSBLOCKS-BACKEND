@@ -5,3 +5,4 @@ pytest
 pydantic-settings
 starlette
 docker
+httpx
