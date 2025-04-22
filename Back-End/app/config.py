@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     MSG_DIR: str = "/ros2_ws/src/sample_interfaces/msg"
     LOG_DIR: str = "/ros2_ws/logs"
     CMAKE_FILE: str = "/ros2_ws/src/sample_interfaces/CMakeLists.txt"
-    SESSION_MANAGER_URL: str= "http://54.87.7.111/api"
+    SESSION_MANAGER_URL: str= "http://54.147.32.204/api"
 
     class Config:
         env_file = ".env"
