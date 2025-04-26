@@ -1,5 +1,4 @@
 # ROSBlocks BACKEND
-
 ROSBlocks BACKEND es una implementación modular de FastAPI que provee servicios para la generación y ejecución de código basado en bloques, integrándose con ROS2 para la generación de mensajes, servicios y nodos. Además, se integra con novnc para la simulación y muestra de la tortuga de Turtlesim en el front.
 
 ## Estructura del Proyecto
