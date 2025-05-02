@@ -33,7 +33,7 @@ def parse_msg_file(file_path: str):
     }
 
 
-@router.get("/", response_model=dict)
+@router.get("", response_model=dict)
 async def check_msg_files():
     msg_dir = os.path.join(settings.INTERFACES_DIR, "msg")
     try:
