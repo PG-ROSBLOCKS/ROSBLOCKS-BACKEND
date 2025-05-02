@@ -40,7 +40,7 @@ def parse_srv_file(file_path: str):
         "response": parse_section(parts[1])
     }
 
-@router.get("/", response_model=dict)
+@router.get("", response_model=dict)
 async def check_srv_files():
     srv_dir = os.path.join(settings.INTERFACES_DIR, "srv")
     try:
