@@ -15,30 +15,19 @@ jobs:
     # 1. Checkout código
     - uses: actions/checkout@v3
 
-    # 2. Sustituir la IP en Back-End/app/config.py
-    - name: Patch SESSION_MANAGER_URL
-      shell: bash
-      run: |
-        FILE="Back-End/app/config.py"
-        HOST="${{ secrets.DEPLOY_HOST }}"
-        sed -i -E \
-          "s~(SESSION_MANAGER_URL\\s*=\\s*\"http://)[^/]*(/api\")~\\1${HOST}\\2~" \
-          "$FILE"
-        echo "✔ SESSION_MANAGER_URL → http://${HOST}/api"
-
-    # 3. Login en Docker Hub
+    # 2. Login en Docker Hub
     - name: Docker Hub login
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # 4. Build la imagen con Compose  (mantiene rosblocks-b:latest)
+    # 3. Build la imagen con Compose  (mantiene rosblocks-b:latest)
     - name: Docker Compose build (backend)
       working-directory: Back-End      # carpeta con docker-compose.yml y Dockerfile
       run: docker compose build backend
 
-    # 5. Retag y push a Docker Hub
+    # 4. Retag y push a Docker Hub
     - name: Tag & Push to Docker Hub
       run: |
         docker tag  $LOCAL_TAG  $HUB_TAG
