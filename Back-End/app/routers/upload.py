@@ -20,4 +20,4 @@ async def upload_code(request: UploadRequest):
     elif request.type.startswith("client"):
         return await generate_client(request)
     else:
-        raise HTTPException(status_code=400, detail="Tipo de request no soportado")
+        raise HTTPException(status_code=400, detail="Unsupported request type")
