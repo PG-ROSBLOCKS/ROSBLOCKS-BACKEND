@@ -1,5 +1,6 @@
 # app/config.py
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from typing import List
 
 
@@ -20,8 +21,7 @@ class Settings(BaseSettings):
     CMAKE_FILE: str = "/ros2_ws/src/sample_interfaces/CMakeLists.txt"
     SESSION_MANAGER_URL: str= "https://api.rosblocks.com.co/api"
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env", extra='ignore')
 
 
 settings = Settings()

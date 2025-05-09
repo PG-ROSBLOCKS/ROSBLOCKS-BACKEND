@@ -21,6 +21,7 @@ async def execute_code(file_name: str):
         ros2 run sample_pkg {file_name[:-3]} 2>&1 | tee {log_file};'"
         """
         subprocess.run(command, shell=True, check=True)
+        logging.info(f"TMUX INICIADO: Sesión {session_id} creada para {file_name}")
         return JSONResponse({"message": "Execution started", "session_id": session_id})
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Error executing script: {str(e)}")
@@ -85,21 +86,48 @@ async def websocket_handler(websocket, session_id: str):
     try:
         last_pos = 0
         while True:
-            if not os.path.exists(log_file):
-                await asyncio.sleep(0.5)
-                continue
-            with open(log_file, "r") as f:
-                f.seek(last_pos)
-                new_output = f.read()
-                last_pos = f.tell()
-            if new_output.strip():
-                message = json.dumps({"output": new_output.strip()})
-                await websocket.send_text(message)
-            await asyncio.sleep(0.5)
+            # Check if tmux session still exists
+            check_command = f"tmux has-session -t {session_id}"
+            process = await asyncio.create_subprocess_shell(
+                check_command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await process.wait()
+
+            if process.returncode != 0:
+                logging.info(f"Tmux session {session_id} not found. Assuming terminated.")
+                logging.info(f"TMUX FINALIZADO: Sesión {session_id} ya no existe.")
+                await websocket.send_text(json.dumps({"status": "terminated", "session_id": session_id}))
+                break  # Exit the loop as the session is gone
+
+            # Read new log output
+            if os.path.exists(log_file):
+                with open(log_file, "r") as f:
+                    f.seek(last_pos)
+                    new_output = f.read()
+                    if new_output: # Only update last_pos if something was read
+                         last_pos = f.tell()
+
+                if new_output.strip():
+                    message = json.dumps({"output": new_output.strip()})
+                    await websocket.send_text(message)
+
+            await asyncio.sleep(0.5) # Check periodically
+
     except WebSocketDisconnect:
         logging.info(f"Cliente desconectado de {session_id}")
     except Exception as e:
-        logging.error(f"WebSocket error: {str(e)}")
+        logging.error(f"WebSocket error for session {session_id}: {str(e)}")
+        # Optionally notify the client about the error before closing
+        try:
+            await websocket.send_text(json.dumps({"status": "error", "detail": str(e)}))
+        except Exception:
+            pass # Ignore errors trying to send on a potentially closed socket
+    finally:
+        # Ensure the websocket is closed gracefully
+        await websocket.close()
+        logging.info(f"WebSocket connection closed for session {session_id}")
 
 async def delete_srv_file(file_name: str):
     file_path = os.path.join(settings.SRV_DIR, file_name)

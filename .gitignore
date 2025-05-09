@@ -3,3 +3,4 @@ Back-End/scripts/generated/
 Back-End/scripts/generated/*
 Back-End/scripts/generated/__pycache__/
 Back-End/scripts/generated/__pycache__/*
+*.pyc
