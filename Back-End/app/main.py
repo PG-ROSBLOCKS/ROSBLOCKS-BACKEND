@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
-from routers import upload, execution, export, srv_files, msg_files,reset, delete, ros_commands
+from routers import upload, execution, export, srv_files, msg_files,reset, delete, ros_commands, health
 from exceptions import custom_exception_handler
 import logging
 
@@ -26,6 +26,7 @@ app.include_router(msg_files.router, prefix="/msgfiles", tags=["MsgFiles"])
 app.include_router(reset.router, prefix="/reset", tags=["Reset"])
 app.include_router(delete.router, prefix="/delete", tags=["Delete"])
 app.include_router(ros_commands.router, prefix="/ros_commands", tags=["RosCommands"])
+app.include_router(health.router, prefix="/health", tags=["Health"])
 
 # Manejador global de excepciones
 app.add_exception_handler(Exception, custom_exception_handler)
