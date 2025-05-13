@@ -105,3 +105,200 @@ async def test_execute_code_subprocess_fails(mocker, mock_settings, mock_os_make
     # Verify that makedirs and the first subprocess were attempted
     mock_os_makedirs.assert_called_once_with(log_dir, exist_ok=True)
     assert mock_subprocess_run.call_count == 2 # Both calls were attempted 
+
+@pytest.mark.asyncio
+async def test_kill_execution_success(mocker, mock_subprocess_run):
+    """Test kill_execution successful flow."""
+    session_id = "test_session_to_kill"
+    # mock_subprocess_run is already a fixture, configure its return value if needed
+    # or ensure it doesn't raise an exception for this test.
+    # By default, the fixture mock_subprocess_run has a MagicMock that won't raise error for check=True
+    # unless its check_returncode is configured to do so, or side_effect is used.
+
+    mocker.patch("app.services.execution_manager.logging") # Mock logging
+
+    response = await execution_manager.kill_execution(session_id)
+
+    expected_command = f"tmux kill-session -t {session_id}"
+    mock_subprocess_run.assert_called_once_with(expected_command, shell=True, check=True)
+    
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 200
+    content = json.loads(response.body.decode())
+    assert content == {"message": "Execution stopped", "session_id": session_id}
+
+@pytest.mark.asyncio
+async def test_kill_execution_subprocess_fails(mocker, mock_subprocess_run):
+    """Test kill_execution when subprocess.run fails."""
+    session_id = "test_session_fail_kill"
+    error_message = "tmux kill command failed"
+    
+    # Configure the mock_subprocess_run fixture to raise CalledProcessError
+    mock_subprocess_run.side_effect = subprocess.CalledProcessError(1, f"tmux kill-session -t {session_id}", stderr=error_message)
+
+    mocker.patch("app.services.execution_manager.logging") # Mock logging
+
+    with pytest.raises(HTTPException) as exc_info:
+        await execution_manager.kill_execution(session_id)
+
+    expected_command = f"tmux kill-session -t {session_id}"
+    mock_subprocess_run.assert_called_once_with(expected_command, shell=True, check=True)
+
+    assert exc_info.value.status_code == 500
+    # The detail should contain the string representation of the original CalledProcessError
+    expected_detail_part = str(subprocess.CalledProcessError(1, f"tmux kill-session -t {session_id}", stderr=error_message))
+    assert f"Error stopping execution: {expected_detail_part}" in exc_info.value.detail 
+
+@pytest.mark.asyncio
+async def test_cleanup_workspace_success_file_exists(mocker, mock_settings, mock_subprocess_run):
+    """Test cleanup_workspace when file exists and all steps succeed."""
+    file_name = "my_node.py"
+    node_name = "my_node"
+    scripts_dir = execution_manager.settings.SCRIPTS_DIR
+    file_path = os.path.join(scripts_dir, file_name)
+
+    mock_os_path_exists = mocker.patch("os.path.exists", return_value=True)
+    mock_os_remove = mocker.patch("os.remove")
+    mock_update_setup_py = mocker.patch("app.services.execution_manager.update_setup_py")
+    mock_update_package_xml = mocker.patch("app.services.execution_manager.update_package_xml")
+    # mock_subprocess_run is a fixture, configure for colcon build success
+    # The fixture already returns a MagicMock that simulates success by default for check=False
+
+    mocker.patch("app.services.execution_manager.logging")
+
+    response = await execution_manager.cleanup_workspace(file_name)
+
+    mock_os_path_exists.assert_called_once_with(file_path)
+    mock_os_remove.assert_called_once_with(file_path)
+    mock_update_setup_py.assert_called_once_with("/ros2_ws/src/sample_pkg/setup.py", node_name, requestType="none", remove=True)
+    mock_update_package_xml.assert_called_once_with("/ros2_ws/src/sample_pkg/package.xml", remove=True)
+    mock_subprocess_run.assert_called_once_with(
+        "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && colcon build --symlink-install'",
+        shell=True, check=False, capture_output=True, text=True
+    )
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 200
+    content = json.loads(response.body.decode())
+    assert content == {"message": "Workspace cleaned successfully", "file": file_name}
+
+@pytest.mark.asyncio
+async def test_cleanup_workspace_success_file_not_exists(mocker, mock_settings, mock_subprocess_run):
+    """Test cleanup_workspace when file does not exist and other steps succeed."""
+    file_name = "other_node.py"
+    node_name = "other_node"
+    scripts_dir = execution_manager.settings.SCRIPTS_DIR
+    file_path = os.path.join(scripts_dir, file_name)
+
+    mock_os_path_exists = mocker.patch("os.path.exists", return_value=False)
+    mock_os_remove = mocker.patch("os.remove") # Should not be called
+    mock_update_setup_py = mocker.patch("app.services.execution_manager.update_setup_py")
+    mock_update_package_xml = mocker.patch("app.services.execution_manager.update_package_xml")
+
+    mocker.patch("app.services.execution_manager.logging")
+
+    response = await execution_manager.cleanup_workspace(file_name)
+
+    mock_os_path_exists.assert_called_once_with(file_path)
+    mock_os_remove.assert_not_called()
+    mock_update_setup_py.assert_called_once_with("/ros2_ws/src/sample_pkg/setup.py", node_name, requestType="none", remove=True)
+    mock_update_package_xml.assert_called_once_with("/ros2_ws/src/sample_pkg/package.xml", remove=True)
+    mock_subprocess_run.assert_called_once_with(
+        "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && colcon build --symlink-install'",
+        shell=True, check=False, capture_output=True, text=True
+    )
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 200
+    content = json.loads(response.body.decode())
+    assert content == {"message": "Workspace cleaned successfully", "file": file_name}
+
+@pytest.mark.asyncio
+async def test_cleanup_workspace_update_setup_py_fails(mocker, mock_settings):
+    """Test cleanup_workspace when update_setup_py raises an exception."""
+    file_name = "fail_setup.py"
+    node_name = "fail_setup"
+    scripts_dir = execution_manager.settings.SCRIPTS_DIR
+    file_path = os.path.join(scripts_dir, file_name)
+
+    mocker.patch("os.path.exists", return_value=True) # Assume file exists for this test path
+    mocker.patch("os.remove")
+    mock_update_setup_py = mocker.patch("app.services.execution_manager.update_setup_py", side_effect=Exception("Setup.py update error"))
+    # update_package_xml and subprocess.run should not be called if update_setup_py fails early
+    mock_update_package_xml = mocker.patch("app.services.execution_manager.update_package_xml") 
+    mock_colcon_build = mocker.patch("subprocess.run")
+
+    mock_log_error = mocker.patch("app.services.execution_manager.logging.error")
+
+    response = await execution_manager.cleanup_workspace(file_name)
+
+    mock_update_setup_py.assert_called_once_with("/ros2_ws/src/sample_pkg/setup.py", node_name, requestType="none", remove=True)
+    mock_update_package_xml.assert_not_called() # Should not be reached
+    mock_colcon_build.assert_not_called() # Should not be reached
+    mock_log_error.assert_called_once_with(f"Error al limpiar el workspace: Setup.py update error")
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 500
+    content = json.loads(response.body.decode())
+    assert content == {"error": "Cleanup failed", "details": "Setup.py update error"}
+
+@pytest.mark.asyncio
+async def test_cleanup_workspace_update_package_xml_fails(mocker, mock_settings):
+    """Test cleanup_workspace when update_package_xml raises an exception."""
+    file_name = "fail_package_xml.py"
+    node_name = "fail_package_xml"
+
+    mocker.patch("os.path.exists", return_value=True)
+    mocker.patch("os.remove")
+    mocker.patch("app.services.execution_manager.update_setup_py") # Assumed to succeed
+    mock_update_package_xml = mocker.patch("app.services.execution_manager.update_package_xml", side_effect=Exception("Package.xml update error"))
+    mock_colcon_build = mocker.patch("subprocess.run")
+
+    mock_log_error = mocker.patch("app.services.execution_manager.logging.error")
+
+    response = await execution_manager.cleanup_workspace(file_name)
+
+    mock_update_package_xml.assert_called_once_with("/ros2_ws/src/sample_pkg/package.xml", remove=True)
+    mock_colcon_build.assert_not_called() # Should not be reached
+    mock_log_error.assert_called_once_with(f"Error al limpiar el workspace: Package.xml update error")
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 500
+    content = json.loads(response.body.decode())
+    assert content == {"error": "Cleanup failed", "details": "Package.xml update error"}
+
+@pytest.mark.asyncio
+async def test_cleanup_workspace_colcon_build_fails(mocker, mock_settings, mock_subprocess_run):
+    # Note: mock_subprocess_run is the fixture for subprocess.run
+    """Test cleanup_workspace when colcon build fails (returns stderr)."""
+    file_name = "colcon_fail_node.py"
+    node_name = "colcon_fail_node"
+
+    mocker.patch("os.path.exists", return_value=True)
+    mocker.patch("os.remove")
+    mocker.patch("app.services.execution_manager.update_setup_py")
+    mocker.patch("app.services.execution_manager.update_package_xml")
+    
+    # Configure the existing mock_subprocess_run fixture for this specific test
+    mock_colcon_result = MagicMock()
+    mock_colcon_result.stdout = "Build partially successful"
+    mock_colcon_result.stderr = "Error during colcon build!"
+    mock_subprocess_run.return_value = mock_colcon_result # This mock is for the colcon build call
+
+    mock_log_error = mocker.patch("app.services.execution_manager.logging.error")
+    mocker.patch("app.services.execution_manager.logging.info") # Mock info as well
+
+    response = await execution_manager.cleanup_workspace(file_name)
+
+    mock_subprocess_run.assert_called_once_with(
+        "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && colcon build --symlink-install'",
+        shell=True, check=False, capture_output=True, text=True
+    )
+    # Check that the specific colcon error was logged
+    mock_log_error.assert_any_call(f"Colcon build error:\n{mock_colcon_result.stderr}") 
+
+    assert isinstance(response, JSONResponse)
+    # The original function returns 200 even if colcon build logs an error, due to check=False and no explicit error raising for this.
+    assert response.status_code == 200 
+    content = json.loads(response.body.decode())
+    assert content == {"message": "Workspace cleaned successfully", "file": file_name} 
