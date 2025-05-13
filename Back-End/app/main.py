@@ -38,7 +38,8 @@ last_activity = asyncio.Event()
 
 @app.middleware("http")
 async def activity_middleware(request: Request, call_next):
-    last_activity.set() # Reset the inactivity timer on each request
+    if not request.url.path.startswith("/health"):
+        last_activity.set()
     response = await call_next(request)
     return response
 
