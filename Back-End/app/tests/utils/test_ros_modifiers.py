@@ -216,3 +216,79 @@ def test_update_package_xml_remove_nonexistent(mocker, package_xml_content_base)
     # Verify that they are not (and no error)
     assert check_deps_in_mock_tree(mock_tree, [])
     mock_write.assert_called_once() # Ensure it attempted to write 
+
+# --- Tests for update_cmake_lists_services ---
+
+@pytest.fixture
+def cmake_lists_content_base():
+    """Base content of CMakeLists.txt for service tests."""
+    return """\
+cmake_minimum_required(VERSION 3.8)
+project(sample_interfaces)
+
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+# Other dependencies can go here
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  # Existing .msg files can be listed here for context if needed
+  # "msg/MyMessage.msg"
+)
+
+# install(DIRECTORY
+#   include/${PROJECT_NAME}
+#   DESTINATION include
+# )
+
+ament_export_dependencies(rosidl_default_runtime)
+ament_package()
+"""
+
+@pytest.fixture
+def cmake_lists_content_with_service():
+    """Content of CMakeLists.txt with an existing service."""
+    return """\
+cmake_minimum_required(VERSION 3.8)
+project(sample_interfaces)
+
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/ExistingService.srv"
+  # "msg/MyMessage.msg"
+)
+
+ament_export_dependencies(rosidl_default_runtime)
+ament_package()
+"""
+
+def test_update_cmake_lists_add_new_service(mocker, cmake_lists_content_base):
+    """Test adding a new service to a base CMakeLists.txt."""
+    mock_file = mock_open(read_data=cmake_lists_content_base)
+    mocker.patch("builtins.open", mock_file)
+    mocker.patch("builtins.print") # If your function prints
+    
+    ros_modifiers.update_cmake_lists_services("dummy_CMakeLists.txt", "NewService")
+    
+    mock_file.assert_called_with("dummy_CMakeLists.txt", "w")
+    handle = mock_file()
+    # Check that writelines was called (or write, depending on your implementation)
+    handle.writelines.assert_called_once() 
+    written_lines = handle.writelines.call_args[0][0]
+    written_content = "".join(written_lines)
+    
+    # Verify the new service is in the rosidl_generate_interfaces block
+    assert 'rosidl_generate_interfaces(${PROJECT_NAME}' in written_content
+    assert '  "srv/NewService.srv"' in written_content
+    # Ensure other parts are preserved
+    assert "ament_package()" in written_content
+
+# Placeholder for more tests
+# def test_update_cmake_lists_add_to_existing_services(...):
+# def test_update_cmake_lists_add_duplicate_service(...):
+# def test_update_cmake_lists_remove_service(...):
+# def test_update_cmake_lists_remove_nonexistent_service(...):
+
+"" 

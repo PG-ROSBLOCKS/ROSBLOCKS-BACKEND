@@ -23,8 +23,8 @@ echo "[INFO] Iniciando websockify + noVNC..."
 websockify --web=/opt/novnc/ --wrap-mode=ignore 8080 localhost:5900 &
 
 echo "[INFO] Iniciando backend FastAPI..."
-cd /app
-exec /opt/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 &    
+cd /
+exec /opt/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 
 
 # Pequeño delay opcional

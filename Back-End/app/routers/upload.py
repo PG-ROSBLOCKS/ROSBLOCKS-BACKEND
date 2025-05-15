@@ -1,8 +1,8 @@
 # app/routers/upload.py
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
-from models.requests import UploadRequest
-from services.code_generator import generate_pub_sub, generate_service, generate_message, generate_server, generate_client
+from ..models.requests import UploadRequest
+from ..services.code_generator import generate_pub_sub, generate_service, generate_message, generate_server, generate_client
 import logging
 
 router = APIRouter()

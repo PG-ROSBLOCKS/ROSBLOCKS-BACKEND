@@ -1,10 +1,9 @@
 # app/services/execution_manager.py
 import os, subprocess, uuid, asyncio, json, logging
-from fastapi import HTTPException
+from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse
-from starlette.websockets import WebSocketDisconnect
-from utils.ros_modifiers import update_cmake_lists_services, update_cmake_lists_messages
-from config import settings
+from ..config import settings
+from ..utils.ros_modifiers import update_cmake_lists_services, update_cmake_lists_messages, update_setup_py, update_package_xml
 
 logging.basicConfig(level=logging.INFO)
 
@@ -45,7 +44,6 @@ async def cleanup_workspace(file_name: str):
             logging.warning(f"Archivo no encontrado: {file_path}")
         setup_file = "/ros2_ws/src/sample_pkg/setup.py"
 
-        from utils.ros_modifiers import update_setup_py, update_package_xml
         update_setup_py(setup_file, node_name, requestType="none", remove=True)
 
         package_xml_file = "/ros2_ws/src/sample_pkg/package.xml"
