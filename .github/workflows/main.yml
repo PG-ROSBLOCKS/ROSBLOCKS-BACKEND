@@ -12,48 +12,40 @@ jobs:
   build-push:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout código
       - uses: actions/checkout@v3
 
-      # 2. (Opcional) Setup Python para pytest
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      # 3. Login en Docker Hub
+      # 1. Login en Docker Hub
       - name: Docker Hub login
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 4. Levantar servicios con Docker Compose
+      # 2. Levantar servicios
       - name: Start backend services
         working-directory: Back-End
+        run: docker compose up --build -d
+
+      # 3. Ejecutar tests dentro del contenedor
+      #    --rm: para que no queden contenedores colgados
+      - name: Run pytest in Docker
+        working-directory: Back-End
         run: |
-          docker compose up --build -d
+          # si tu imagen ya incluye pytest/pytest-cov, omite el pip install
+          docker compose run --rm backend pip install pytest pytest-cov
+          docker compose run --rm backend pytest --cov=. --cov-fail-under=80
 
-      # 5. Ejecutar tests
-      - name: Run pytest
-        working-directory: Back-End
-        run: python -m pytest
-
-      - name: Check coverage
-        working-directory: Back-End
-        run: python -m pytest --cov=. --cov-fail-under=80
-
-      # 6. Detener y limpiar contenedores
+      # 4. Detener y limpiar todo
       - name: Tear down services
         working-directory: Back-End
         run: docker compose down
 
-      # 7. Build la imagen con Compose (mantiene rosblocks-b:latest)
+      # 5. Build la imagen para prod
       - name: Docker Compose build (backend)
         working-directory: Back-End
         run: docker compose build backend
 
-      # 8. Retag y push a Docker Hub
+      # 6. Retag & Push
       - name: Tag & Push to Docker Hub
         run: |
           docker tag $LOCAL_TAG $HUB_TAG
