@@ -12,9 +12,20 @@ jobs:
   test:
     name: 🧪 Build & Run Tests
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install test dependencies on runner
+        working-directory: Back-End
+        run: |
+          pip install -r requirements-local.txt
 
       - name: Build backend image
         working-directory: Back-End
@@ -27,19 +38,19 @@ jobs:
       - name: Wait for FastAPI to be healthy
         working-directory: Back-End
         run: |
+          echo "⚙️  Esperando a FastAPI..."
           for i in {1..15}; do
             if curl -s http://localhost:8000/docs > /dev/null; then
-              echo "FastAPI up!" && exit 0
+              echo "✅  FastAPI está arriba." && exit 0
             fi
             sleep 2
           done
-          echo "FastAPI did not start in time" && exit 1
+          echo "❌  FastAPI no respondió." && exit 1
 
-      - name: Install pytest & run tests
+      - name: Run pytest with coverage threshold
         working-directory: Back-End
         run: |
-          docker compose exec -T backend pip install pytest pytest-cov
-          docker compose exec -T backend pytest --cov=. --cov-fail-under=80
+          pytest --cov=. --cov-fail-under=80
 
       - name: Tear down services
         working-directory: Back-End
@@ -49,6 +60,7 @@ jobs:
     name: 📦 Tag & Push
     needs: test
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
