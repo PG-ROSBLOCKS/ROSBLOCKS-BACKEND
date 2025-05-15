@@ -1,4 +1,4 @@
-name: Build & Publish FastAPI backend (Compose → Docker Hub)
+name: Build, Test & Publish FastAPI backend (Compose → Docker Hub)
 
 on:
   push:
@@ -9,58 +9,50 @@ env:
   HUB_TAG:    juanandresc/rosblocks-b:latest
 
 jobs:
-  test:
-    name: Build & Run Tests
+  build-test-publish:
+    name: 🛠️ Build, 🧪 Test & 📦 Publish
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
 
-      # construye tu imagen una sola vez
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install test dependencies on runner
+        working-directory: Back-End
+        run: pip install -r requirements-local.txt
+
       - name: Build backend image
         working-directory: Back-End
         run: docker compose build backend
 
-      # levanta el servicio y corre tests...
-      - name: Start & test
+      - name: Start backend service
+        working-directory: Back-End
+        run: docker compose up -d
+
+      - name: Wait for FastAPI to be healthy
         working-directory: Back-End
         run: |
-          docker compose up -d
-          # espera a FastAPI…
+          echo "⚙️  Esperando a FastAPI..."
           for i in {1..15}; do
-            if curl -s http://localhost:8000/docs; then exit 0; fi
+            if curl -s http://localhost:8000/docs > /dev/null; then
+              echo "✅  FastAPI está arriba." && exit 0
+            fi
             sleep 2
           done
-          pytest --cov=. --cov-fail-under=70
-          docker compose down
+          echo "❌  FastAPI no respondió." && exit 1
 
-      # empaqueta la imagen en un tar.gz
-      - name: Save built image
+      - name: Run pytest with coverage threshold
         working-directory: Back-End
-        run: |
-          docker save $LOCAL_TAG | gzip > backend_image.tar.gz
+        run: pytest --cov=. --cov-fail-under=70
 
-      - uses: actions/upload-artifact@v3
-        with:
-          name: backend-image
-          path: Back-End/backend_image.tar.gz
-
-  publish:
-    name: Tag & Push
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      # descarga y “carga” la imagen prebuild
-      - uses: actions/download-artifact@v3
-        with:
-          name: backend-image
-          path: .
-
-      - name: Load image into Docker
-        run: |
-          gzip -d backend_image.tar.gz
-          docker load < backend_image.tar
+      - name: Tear down services
+        working-directory: Back-End
+        run: docker compose down
 
       - name: Docker Hub login
         uses: docker/login-action@v3
