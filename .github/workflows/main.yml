@@ -12,68 +12,61 @@ jobs:
   test:
     name: Build & Run Tests
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install test dependencies on runner
-        working-directory: Back-End
-        run: |
-          pip install -r requirements-local.txt
-
+      # construye tu imagen una sola vez
       - name: Build backend image
         working-directory: Back-End
         run: docker compose build backend
 
-      - name: Start backend service
-        working-directory: Back-End
-        run: docker compose up -d
-
-      - name: Wait for FastAPI to be healthy
+      # levanta el servicio y corre tests...
+      - name: Start & test
         working-directory: Back-End
         run: |
-          echo "⚙️  Esperando a FastAPI..."
+          docker compose up -d
+          # espera a FastAPI…
           for i in {1..15}; do
-            if curl -s http://localhost:8000/docs > /dev/null; then
-              echo "FastAPI ok." && exit 0
-            fi
+            if curl -s http://localhost:8000/docs; then exit 0; fi
             sleep 2
           done
-          echo "FastAPI no respondió." && exit 1
+          pytest --cov=. --cov-fail-under=70
+          docker compose down
 
-      - name: Run pytest with coverage threshold
+      # empaqueta la imagen en un tar.gz
+      - name: Save built image
         working-directory: Back-End
         run: |
-          pytest --cov=. --cov-fail-under=70
+          docker save $LOCAL_TAG | gzip > backend_image.tar.gz
 
-      - name: Tear down services
-        working-directory: Back-End
-        run: docker compose down
+      - uses: actions/upload-artifact@v3
+        with:
+          name: backend-image
+          path: Back-End/backend_image.tar.gz
 
   publish:
     name: Tag & Push
     needs: test
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+
+      # descarga y “carga” la imagen prebuild
+      - uses: actions/download-artifact@v3
+        with:
+          name: backend-image
+          path: .
+
+      - name: Load image into Docker
+        run: |
+          gzip -d backend_image.tar.gz
+          docker load < backend_image.tar
 
       - name: Docker Hub login
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build backend image
-        working-directory: Back-End
-        run: docker compose build backend
 
       - name: Tag & Push to Docker Hub
         run: |
