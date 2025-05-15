@@ -9,43 +9,60 @@ env:
   HUB_TAG:    juanandresc/rosblocks-b:latest
 
 jobs:
-  build-push:
+  test:
+    name: 🧪 Build & Run Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      # 1. Login en Docker Hub
+      - name: Build backend image
+        working-directory: Back-End
+        run: docker compose build backend
+
+      - name: Start backend service
+        working-directory: Back-End
+        run: docker compose up -d
+
+      - name: Wait for FastAPI to be healthy
+        working-directory: Back-End
+        run: |
+          for i in {1..15}; do
+            if curl -s http://localhost:8000/docs > /dev/null; then
+              echo "FastAPI up!" && exit 0
+            fi
+            sleep 2
+          done
+          echo "FastAPI did not start in time" && exit 1
+
+      - name: Install pytest & run tests
+        working-directory: Back-End
+        run: |
+          docker compose exec -T backend pip install pytest pytest-cov
+          docker compose exec -T backend pytest --cov=. --cov-fail-under=80
+
+      - name: Tear down services
+        working-directory: Back-End
+        run: docker compose down
+
+  publish:
+    name: 📦 Tag & Push
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Docker Hub login
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 2. Levantar servicios
-      - name: Start backend services
-        working-directory: Back-End
-        run: docker compose up --build -d
-
-      # 3. Ejecutar tests dentro del contenedor
-      #    --rm: para que no queden contenedores colgados
-      - name: Run pytest in Docker
-        working-directory: Back-End
-        run: |
-          # si tu imagen ya incluye pytest/pytest-cov, omite el pip install
-          docker compose run --rm backend pip install pytest pytest-cov
-          docker compose run --rm backend pytest --cov=. --cov-fail-under=80
-
-      # 4. Detener y limpiar todo
-      - name: Tear down services
-        working-directory: Back-End
-        run: docker compose down
-
-      # 5. Build la imagen para prod
-      - name: Docker Compose build (backend)
+      - name: Build backend image
         working-directory: Back-End
         run: docker compose build backend
 
-      # 6. Retag & Push
       - name: Tag & Push to Docker Hub
         run: |
           docker tag $LOCAL_TAG $HUB_TAG
