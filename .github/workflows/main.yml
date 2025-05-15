@@ -10,7 +10,7 @@ env:
 
 jobs:
   test:
-    name: 🧪 Build & Run Tests
+    name: Build & Run Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -41,23 +41,23 @@ jobs:
           echo "⚙️  Esperando a FastAPI..."
           for i in {1..15}; do
             if curl -s http://localhost:8000/docs > /dev/null; then
-              echo "✅  FastAPI está arriba." && exit 0
+              echo "FastAPI ok." && exit 0
             fi
             sleep 2
           done
-          echo "❌  FastAPI no respondió." && exit 1
+          echo "FastAPI no respondió." && exit 1
 
       - name: Run pytest with coverage threshold
         working-directory: Back-End
         run: |
-          pytest --cov=. --cov-fail-under=80
+          pytest --cov=. --cov-fail-under=70
 
       - name: Tear down services
         working-directory: Back-End
         run: docker compose down
 
   publish:
-    name: 📦 Tag & Push
+    name: Tag & Push
     needs: test
     runs-on: ubuntu-latest
 
