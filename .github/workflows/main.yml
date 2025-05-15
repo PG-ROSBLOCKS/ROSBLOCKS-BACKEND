@@ -2,7 +2,7 @@ name: Build, Test & Publish FastAPI backend (Compose → Docker Hub)
 
 on:
   push:
-    branches: [ aws-interactive-cicd ]
+    branches: [ aws-interactive ]
 
 env:
   LOCAL_TAG: rosblocks-b:latest
