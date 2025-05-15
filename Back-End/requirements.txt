@@ -1,8 +1,12 @@
 fastapi
 uvicorn[standard]
 pydantic
-pytest
 pydantic-settings
 starlette
 docker
 httpx
+# Testing dependencies
+pytest
+pytest-cov
+pytest-asyncio
+
