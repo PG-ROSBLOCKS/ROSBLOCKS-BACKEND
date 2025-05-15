@@ -57,7 +57,6 @@ pytest-mock==3.14.0
 python-dateutil==2.8.2
 python-dotenv==1.1.0
 pytz==2023.3.post1
-pywin32==306
 pyzmq==25.1.1
 requests==2.32.3
 scipy==1.11.3
