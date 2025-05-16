@@ -15,7 +15,7 @@ async def reset_container():
     logging.info(f"ros2 topic list result:\n{result.stdout}")
     return {"message": "ROS2 TOPIC LIST EXECUTED", "output": result.stdout}
 
-@router.get("stop_ros_daemon", response_model=dict)
+@router.get("/stop_ros_daemon", response_model=dict)
 async def stop_ros_daemon():
     result = subprocess.run(
         "bash -c 'source /ros2_ws/install/setup.bash && cd /ros2_ws && ros2 daemon stop'",
