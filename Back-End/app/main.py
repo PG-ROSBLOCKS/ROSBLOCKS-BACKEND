@@ -34,7 +34,7 @@ app.include_router(health.router, prefix="/health", tags=["Health"])
 app.add_exception_handler(Exception, custom_exception_handler)
 
 # --- Inactivity ---
-INACTIVITY_LIMIT = 300  # seconds (5 minutes)
+INACTIVITY_LIMIT = 1800  # seconds (5 minutes)
 last_activity = asyncio.Event()
 
 @app.middleware("http")
