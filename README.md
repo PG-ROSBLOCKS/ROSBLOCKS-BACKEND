@@ -1,74 +1,84 @@
-# ROSBlocks BACKEND
+# ROSBlocks Backend
 
-ROSBlocks BACKEND es una implementación modular de FastAPI que provee servicios para la generación y ejecución de código basado en bloques, integrándose con ROS2 para la generación de mensajes, servicios y nodos. Además, se integra con novnc para la simulación y muestra de la tortuga de Turtlesim en el front.
+**ROSBlocks Backend** is a modular FastAPI implementation that provides services for generating and executing ROS 2-based code from visual blocks. It integrates with the ROS 2 framework to support the creation of messages, services, and nodes. It also includes support for graphical simulation via noVNC and Turtlesim, enabling visual feedback in the frontend.
 
-## Estructura del Proyecto
+## Project Structure
 
-- **app/**: Contiene el código fuente de la aplicación.
-  - **main.py**: Punto de entrada.
-  - **config.py**: Configuraciones globales.
-  - **models/**: Modelos Pydantic.
-  - **routers/**: Endpoints organizados por funcionalidad.
-  - **services/**: Lógica de negocio.
-  - **utils/**: Funciones auxiliares.
-  - **exceptions.py**: Manejo de errores global.
-- **tests/**: Pruebas unitarias e integradas.
-- **requirements.txt**: Dependencias del proyecto.
+- **app/**: Main application source code
+  - **main.py**: Entry point
+  - **config.py**: Global configuration
+  - **models/**: Pydantic models
+  - **routers/**: API endpoints grouped by functionality
+  - **services/**: Business logic and backend operations
+  - **utils/**: Utility functions and helpers
+  - **exceptions.py**: Global exception handling
+- **tests/**: Unit and integration tests
+- **requirements.txt**: Project dependencies
 
-## Dependencias necesarias
+## Requirements
 
-- Se necesita tener instalado Docker en el sistema operativo
+- Docker must be installed on your system
 
-## Instalación de Docker
+## Docker Installation
+
 ### Ubuntu / Debian
-Sigue las instrucciones oficiales de Docker (https://docs.docker.com/desktop/setup/install/linux/ubuntu/) o ejecuta los siguientes comandos:
 
-1. Agregar la clave GPG oficial de Docker:
+Follow the [official Docker installation guide](https://docs.docker.com/desktop/setup/install/linux/ubuntu/) or run the commands below:
+
+1. Add Docker's official GPG key:
 
 ```bash
-# Add Docker's official GPG key:
 sudo apt-get update
 sudo apt-get install ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
 ```
-2. Agregar el repositorio de Docker a las fuentes de Apt:
+
+2. Add the Docker repository:
+
 ```bash
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu   $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" |   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 ```
-3. Instalar Docker Engine:
+
+3. Install Docker Engine:
+
 ```bash
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
-4. Verificar la instalación:
+
+4. Verify the installation:
+
 ```bash
 sudo docker run hello-world
 ```
+
 ### Windows
-- Descarga Docker Desktop para Windows desde el sitio oficial de Docker: https://docs.docker.com/desktop/setup/install/windows-install/. 
-- Sigue el asistente de instalación. Asegúrate de habilitar WSL 2 durante la instalación.
-- Una vez instalado, abre Docker Desktop y verifica que el servicio esté en ejecución.
 
-## Descargar el repositorio
+- Download Docker Desktop for Windows from the [official Docker site](https://docs.docker.com/desktop/setup/install/windows-install/)
+- Follow the installer instructions, and enable WSL 2 when prompted
+- Once installed, open Docker Desktop and confirm it is running
 
-Una vez descargado el proyecto y descomprimido o en su defecto una vez se haya clonado:
+## Clone the Repository
+
 ```bash
 git clone https://github.com/PG-ROSBLOCKS/ROSBLOCKS-BACKEND.git
+cd ROSBLOCKS-BACKEND
 ```
-## Ejecutar el proyecto
-Desde la carpeta raíz (donde se encuentra el archivo docker-compose.yml), ejecuta:
+
+## Run the Project
+
+From the root directory (where `docker-compose.yml` is located), run:
 
 ```bash
 docker-compose up --build
 ```
-Este comando compilará las imágenes y levantará los servicios definidos.
-- El backend de FastAPI se expondrá en http://localhost:8000.
 
-## Endpoints y Documentación
-Una vez que el contenedor esté corriendo, accede a la documentación interactiva de la API en:
-- Swagger UI: http://localhost:8000/docs
+This will build the Docker images and start all defined services.
+- FastAPI will be available at: `http://localhost:8000`
+
+## API Documentation
+
+Once the backend container is running, access the interactive API documentation at:
+- Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
